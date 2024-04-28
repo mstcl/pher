@@ -201,7 +201,7 @@ func getUniqueRelLinks(
 
 	// remove self from l
 	for _, j := range l {
-		if inDir+j.Href+".md" == f {
+		if inDir+util.RemoveExtension(j.Href)+".md" == f {
 			continue
 		}
 		u = append(u, j)

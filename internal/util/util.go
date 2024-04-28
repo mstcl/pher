@@ -153,7 +153,7 @@ func ResolveDate(d string) (string, string, error) {
 func CopyExtraFiles(inDir string, outDir string, files map[string]bool) error {
 	// Copy keys of i (internal image links) to outDir
 	for k := range files {
-		out := ResolveOutPath(k,inDir,outDir,"")
+		out := ResolveOutPath(k, inDir, outDir, "")
 
 		// Make dir to preserver structure
 		dirOut := GetFilePath(out)
@@ -196,4 +196,8 @@ func IsFileExist(f string) (bool, error) {
 		}
 	}
 	return true, nil
+}
+
+func RemoveExtension(f string) string {
+	return strings.TrimSuffix(f, filepath.Ext(f))
 }

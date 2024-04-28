@@ -7,7 +7,7 @@
   <main>
   {{- template "article" .}}
   </main>
-  {{- if or .Backlinks .Listing}}
+  {{- if or .Backlinks .Listing .Relatedlinks}}
   {{- template "aside" . -}}
   {{- end}}
   {{- if .Footer}}

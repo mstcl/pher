@@ -21,12 +21,12 @@ import (
 	"path/filepath"
 
 	"github.com/mattn/go-zglob"
-	"github.com/mstcl/pher.git/internal/config"
-	"github.com/mstcl/pher.git/internal/extract"
-	"github.com/mstcl/pher.git/internal/feed"
-	"github.com/mstcl/pher.git/internal/parse"
-	"github.com/mstcl/pher.git/internal/render"
-	"github.com/mstcl/pher.git/internal/util"
+	"github.com/mstcl/pher/internal/config"
+	"github.com/mstcl/pher/internal/extract"
+	"github.com/mstcl/pher/internal/feed"
+	"github.com/mstcl/pher/internal/parse"
+	"github.com/mstcl/pher/internal/render"
+	"github.com/mstcl/pher/internal/util"
 )
 
 //go:embed web/template/*

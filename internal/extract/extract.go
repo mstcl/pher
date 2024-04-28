@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 
 	"github.com/mattn/go-zglob"
-	"github.com/mstcl/pher.git/internal/listing"
-	"github.com/mstcl/pher.git/internal/parse"
-	"github.com/mstcl/pher.git/internal/tags"
-	"github.com/mstcl/pher.git/internal/util"
+	"github.com/mstcl/pher/internal/listing"
+	"github.com/mstcl/pher/internal/parse"
+	"github.com/mstcl/pher/internal/tags"
+	"github.com/mstcl/pher/internal/util"
 )
 
 // Process files to build content c, metadata m, links l.

@@ -5,9 +5,9 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/mstcl/pher.git/internal/frontmatter"
-	"github.com/mstcl/pher.git/internal/toc"
-	"github.com/mstcl/pher.git/internal/wikilink"
+	"github.com/mstcl/pher/internal/frontmatter"
+	"github.com/mstcl/pher/internal/toc"
+	"github.com/mstcl/pher/internal/wikilink"
 	"github.com/yuin/goldmark"
 	highlighting "github.com/yuin/goldmark-highlighting"
 	"github.com/yuin/goldmark/ast"

@@ -7,11 +7,11 @@ import (
 	"html/template"
 	"os"
 
-	"github.com/mstcl/pher.git/internal/config"
-	"github.com/mstcl/pher.git/internal/listing"
-	"github.com/mstcl/pher.git/internal/parse"
-	"github.com/mstcl/pher.git/internal/tags"
-	"github.com/mstcl/pher.git/internal/util"
+	"github.com/mstcl/pher/internal/config"
+	"github.com/mstcl/pher/internal/listing"
+	"github.com/mstcl/pher/internal/parse"
+	"github.com/mstcl/pher/internal/tags"
+	"github.com/mstcl/pher/internal/util"
 )
 
 // All fields used in the html templates.

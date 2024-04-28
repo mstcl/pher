@@ -1,7 +1,7 @@
 package tags
 
 import (
-	"github.com/mstcl/pher.git/internal/listing"
+	"github.com/mstcl/pher/internal/listing"
 	"sort"
 )
 

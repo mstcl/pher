@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/gorilla/feeds"
-	"github.com/mstcl/pher.git/internal/config"
-	"github.com/mstcl/pher.git/internal/parse"
+	"github.com/mstcl/pher/internal/config"
+	"github.com/mstcl/pher/internal/parse"
 )
 
 func MakeFeed(

@@ -13,14 +13,23 @@ type Config struct {
 	AuthorName    string       `yaml:"authorName"`
 	AuthorEmail   string       `yaml:"authorEmail"`
 	RootCrumb     string       `yaml:"rootCrumb"`
-	CodeHighlight bool         `yaml:"false"`
+	CodeHighlight bool         `yaml:"codeHighlight"`
 	Footer        []FooterLink `yaml:"footer"`
 	Head          string       `yaml:"head"`
+	IsExt         bool         `yaml:"keepExtension"`
 }
 
 type FooterLink struct {
 	Href string `yaml:"href"`
 	Text string `yaml:"text"`
+}
+
+func DefaultConfig() Config {
+	return Config{
+		CodeHighlight: true,
+		IsExt:         true,
+		RootCrumb:     "~",
+	}
 }
 
 func Read(f string) (*Config, error) {
@@ -29,9 +38,7 @@ func Read(f string) (*Config, error) {
 		return nil, fmt.Errorf("reading config: %w", err)
 	}
 
-	cfg := Config{
-		CodeHighlight: true,
-	}
+	cfg := DefaultConfig()
 	if err := yaml.Unmarshal(b, &cfg); err != nil {
 		return nil, fmt.Errorf("parsing config: %w", err)
 	}

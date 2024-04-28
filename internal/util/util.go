@@ -19,6 +19,13 @@ func GetRelativeFilePath(f string, root string) string {
 	return strings.Join(strings.Split(f, "/")[depth:], "/")
 }
 
+// Given /path/to/filename.ext, return filename.ext
+func GetFileName(f string) string {
+	chunks := strings.Split(f, "/")
+	base := chunks[len(chunks)-1]
+	return base
+}
+
 // Given /path/to/filename.ext, return filename
 func GetFileBase(f string) string {
 	chunks := strings.Split(f, "/")
@@ -30,6 +37,13 @@ func GetFileBase(f string) string {
 func GetFilePath(f string) string {
 	chunks := strings.Split(f, "/")
 	return strings.Join(chunks[:len(chunks)-1], "/")
+}
+
+// Given /path/to/filename.ext, return .ext
+func GetFileExt(f string) string {
+	chunks := strings.Split(f, "/")
+	base := chunks[len(chunks)-1]
+	return filepath.Ext(base)
 }
 
 // OS delete given files
@@ -58,8 +72,14 @@ func ReorderFiles(files []string) []string {
 	return append(ni, yi...)
 }
 
-func GetCrumbs(relDir string) ([]string, []string) {
-	crumbs := strings.Split(relDir, "/")
+// If link is "/foo/bar/hello.md"
+//
+// crumbs is {"foo", "bar"}
+//
+// crumbLinks is {"/foo", "/foo/bar"}
+func GetCrumbs(f string, inDir string, isExt bool) ([]string, []string) {
+	chunks := GetFilePath(GetRelativeFilePath(f, inDir))
+	crumbs := strings.Split(chunks, "/")
 	crumbLinks := []string{}
 	for i := range crumbs {
 		if i == len(crumbs)-1 {
@@ -67,12 +87,16 @@ func GetCrumbs(relDir string) ([]string, []string) {
 		}
 		if i != len(crumbs) {
 			cl := strings.Join(crumbs[:i+1], "/")
+			if isExt {
+				cl += "/index.html"
+			}
 			crumbLinks = append(crumbLinks, cl)
 		}
 	}
 	return crumbs[:len(crumbs)-1], crumbLinks
 }
 
+// Return title mt else fn
 func ResolveTitle(mt string, fn string) string {
 	var title string
 	if len(mt) > 0 {
@@ -83,6 +107,7 @@ func ResolveTitle(mt string, fn string) string {
 	return title
 }
 
+// Return the href
 func ResolveHref(f string, inDir string) string {
 	var href string
 	rel := GetFilePath(GetRelativeFilePath(f, inDir))
@@ -94,10 +119,78 @@ func ResolveHref(f string, inDir string) string {
 	return href
 }
 
+// Resolve out path of file or directory given absolute path f
+func ResolveOutPath(f string, inDir string, outDir string, newExt string) string {
+	chunks := GetRelativeFilePath(f, inDir)
+	chunks = GetFilePath(chunks)
+	if len(chunks) > 0 {
+		chunks += "/"
+	}
+
+	// Leave me and my extension alone
+	var fn string
+	if len(newExt) > 0 {
+		fn = GetFileBase(f) + newExt
+	} else {
+		fn = GetFileName(f)
+	}
+
+	o := outDir + "/" + chunks + fn
+	return o
+}
+
 func ResolveDate(d string) (string, string, error) {
 	dt, err := time.Parse("2006-01-02", d)
 	if err != nil {
 		return "", "", fmt.Errorf("time parse: %w", err)
 	}
 	return dt.Format("02 Jan 2006"), dt.Format(time.RFC3339), nil
+}
+
+func CopyExtraFiles(inDir string, outDir string, files map[string]bool) error {
+	// Copy keys of i (internal image links) to outDir
+	for k := range files {
+		out := ResolveOutPath(k,inDir,outDir,"")
+
+		// Make dir to preserver structure
+		dirOut := GetFilePath(out)
+		err := os.MkdirAll(dirOut, os.ModePerm)
+		if err != nil {
+			return fmt.Errorf("mkdir: %w", err)
+		}
+
+		// Copy from in to out
+		b, err := os.ReadFile(k)
+		if err != nil {
+			return fmt.Errorf("read file: %w", err)
+		}
+		err = os.WriteFile(out, b, 0644)
+		if err != nil {
+			return fmt.Errorf("write file: %w", err)
+		}
+	}
+	return nil
+}
+
+func IsEntryPresent(f string) (bool, error) {
+	res, err := filepath.Glob(f + "/*.md")
+	if err != nil {
+		return false, err
+	}
+	if len(res) == 0 {
+		return false, nil
+	}
+	return true, nil
+}
+
+func IsFileExist(f string) (bool, error) {
+	_, err := os.Stat(f)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		} else {
+			return false, err
+		}
+	}
+	return true, nil
 }

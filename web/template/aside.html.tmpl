@@ -76,7 +76,7 @@
 	  <ul class="tags-listing">
 	  {{- range .TagsListing}}
 		<li>
-		  <a class="tags-title" href="/tags#{{.Name}}">{{.Name}}
+		  <a class="tags-title" href="/tags{{$.Ext}}#{{.Name}}">{{.Name}}
 		  <span>{{.Count}}</span>
 		  </a>
 		  </div>

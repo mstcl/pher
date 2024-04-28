@@ -13,13 +13,14 @@ import (
 )
 
 // Process files to build content c, metadata m, links l.
-func Extract(files []string, inDir string, isHighlight bool) (
+func Extract(files []string, inDir string, isHighlight bool, isExt bool) (
 	map[string]parse.Metadata,
 	map[string][]byte,
 	map[string][]listing.Listing,
 	[]tags.Tag,
 	map[string][]listing.Listing,
 	map[string]string,
+	map[string]bool,
 	error,
 ) {
 	// Metadata, content, backlinks and tags storing
@@ -30,12 +31,14 @@ func Extract(files []string, inDir string, isHighlight bool) (
 	tl := make(map[string][]listing.Listing)
 	rl := make(map[string][]listing.Listing)
 	h := make(map[string]string)
+	i := make(map[string]bool)
 
 	for _, f := range files {
 		// Read input file
 		b, err := os.ReadFile(f)
 		if err != nil {
 			return nil,
+				nil,
 				nil,
 				nil,
 				nil,
@@ -57,6 +60,9 @@ func Extract(files []string, inDir string, isHighlight bool) (
 		path := util.GetFilePath(f)
 		base := util.GetFileBase(f)
 		href := util.ResolveHref(f, inDir)
+		if isExt {
+			href += ".html"
+		}
 		title := util.ResolveTitle(md.Title, base)
 
 		// Append to hrefs
@@ -64,9 +70,10 @@ func Extract(files []string, inDir string, isHighlight bool) (
 		h[f] = href
 
 		// Parse for content
-		html, err := parse.ParseFile(b, md.TOC, isHighlight)
+		html, err := parse.ParseSource(b, md.TOC, isHighlight)
 		if err != nil {
 			return nil,
+				nil,
 				nil,
 				nil,
 				nil,
@@ -79,9 +86,9 @@ func Extract(files []string, inDir string, isHighlight bool) (
 		c[f] = html
 
 		// Append to tags
-		for _, i := range md.Tags {
-			tc[i] += 1
-			tl[i] = append(tl[i], listing.Listing{
+		for _, v := range md.Tags {
+			tc[v] += 1
+			tl[v] = append(tl[v], listing.Listing{
 				Href:        href,
 				Title:       title,
 				Description: md.Description,
@@ -90,9 +97,22 @@ func Extract(files []string, inDir string, isHighlight bool) (
 		}
 
 		// Extract wiki links
-		links, err := parse.ParseWikilinks(b)
+		// links, err := parse.ParseWikilinks(b)
+		// if err != nil {
+		// 	return nil,
+		// 		nil,
+		// 		nil,
+		// 		nil,
+		// 		nil,
+		// 		nil,
+		// 		fmt.Errorf("extract links: %w", err)
+		// }
+
+		// Extract wiki blinks
+		blinks, ilinks, err := parse.ParseInternalLinks(b)
 		if err != nil {
 			return nil,
+				nil,
 				nil,
 				nil,
 				nil,
@@ -101,13 +121,37 @@ func Extract(files []string, inDir string, isHighlight bool) (
 				fmt.Errorf("extract links: %w", err)
 		}
 
-		// Append to backlinks l
-		// Backlinks can be relative e.g. [[../blah]]
-		for _, v := range links {
-			// Reconstruct wikilink into full input path
-			ref, err := filepath.Abs(path + "/" + v + ".md")
+		// Absolutize image links
+		for _, v := range ilinks {
+			// Reconstruct link into full input path
+			ref, err := filepath.Abs(path + "/" + v)
 			if err != nil {
 				return nil,
+					nil,
+					nil,
+					nil,
+					nil,
+					nil,
+					nil,
+					fmt.Errorf("resolving path: %w", err)
+			}
+			i[ref] = true
+		}
+
+		// Append to backlinks l
+		// Backlinks can be relative e.g. [[../blah]]
+		for _, v := range blinks {
+			// Reconstruct wikilink into full input path
+			ref, err := filepath.Abs(path + "/" + v)
+			// Process links with extensions as external files
+			// like images/gifs
+			if len(util.GetFileExt(ref)) > 0 {
+				i[ref] = true
+			}
+			ref += ".md"
+			if err != nil {
+				return nil,
+					nil,
 					nil,
 					nil,
 					nil,
@@ -137,7 +181,7 @@ func Extract(files []string, inDir string, isHighlight bool) (
 
 	// Transform tags to right struct
 	t := tags.GatherTags(tc, tl)
-	return m, c, l, t, rl, h, nil
+	return m, c, l, t, rl, h, i, nil
 }
 
 // For file f, find related links based on tags (populated in tl)
@@ -146,7 +190,7 @@ func getUniqueRelLinks(
 	inDir string,
 	m parse.Metadata,
 	tl map[string][]listing.Listing,
-) ([]listing.Listing) {
+) []listing.Listing {
 	l := []listing.Listing{}
 	u := []listing.Listing{}
 
@@ -166,16 +210,22 @@ func getUniqueRelLinks(
 }
 
 // For every index file present under subdir, populate its children to render
-// the listings
+// the listings, also return those with missing listing with format
+// `map[string]bool` where key is the index path that is missing.
 func ExtractIndexListing(
 	inDir string,
 	m map[string]parse.Metadata,
-) (map[string][]listing.Listing, error) {
+	isExt bool,
+) (
+	map[string][]listing.Listing,
+	map[string]bool,
+	error,) {
 	ls := make(map[string][]listing.Listing)
+	missing := make(map[string]bool)
 	files, err := zglob.Glob(inDir + "/**/*")
 	files = append(files, inDir)
 	if err != nil {
-		_ = fmt.Errorf("glob files: %w", err)
+		return nil, nil, fmt.Errorf("glob files: %w", err)
 	}
 	// Go through everything that aren't files
 	// Glob those directories for both files and directories
@@ -183,7 +233,7 @@ func ExtractIndexListing(
 		// Stat files/directories
 		st, err := os.Stat(dir)
 		if err != nil {
-			return nil, fmt.Errorf("stat files: %w", err)
+			return nil, nil, fmt.Errorf("stat files: %w", err)
 		}
 
 		// Only process directories
@@ -194,68 +244,113 @@ func ExtractIndexListing(
 		// Glob under directory
 		subfiles, err := filepath.Glob(dir + "/*")
 		if err != nil {
-			return nil, fmt.Errorf("glob files: %w", err)
+			return nil, nil, fmt.Errorf("glob files: %w", err)
 		}
 
 		// Use source file as key for consistency
-		dir = dir + "/" + "index.md"
+		dirI := dir + "/" + "index.md"
 
 		// Now go through all globbed files/directories
 		for _, f := range subfiles {
-			// Don't need to process index files or unlisted ones
+			// Stat files/directories
+			fst, err := os.Stat(f)
+			if err != nil {
+				return nil, nil, fmt.Errorf("stat files: %w", err)
+			}
+			IsDir := fst.Mode().IsDir()
+
+			// Skip hidden files
+			if util.GetRelativeFilePath(f, inDir)[0] == 46 {
+				continue
+			}
+
+			// Skip non-markdon files
+			if util.GetFileExt(f) != ".md" && !IsDir {
+				continue
+			}
+
+			// Skip index files or unlisted ones
 			if util.GetFileBase(f) == "index" || m[f].Unlisted {
 				continue
 			}
 
+			// Skip directories without any markdown files
+			// Append to missing if index doesn't exist
+			if IsDir {
+				entryExists, err := util.IsEntryPresent(f)
+				if err != nil {
+					return nil, nil, fmt.Errorf("glob files: %w", err)
+				}
+				if !entryExists {
+					continue
+				}
+				mf := f+"/index.md"
+				indexExists, err := util.IsFileExist(mf)
+				if err != nil {
+					return nil, nil, fmt.Errorf("stat file: %w", err)
+				}
+				if !indexExists {
+					missing[mf] = true
+				}
+			}
+
+			ld := listing.Listing{}
+
+			// Grab href target, different for file vs. dir
+			ld.IsDir = IsDir
+
 			// Create the entry
-			ld, err := makeListingEntry(f, inDir, m[f])
+			ld, err = makeListingEntry(ld, f, dir, m, isExt)
 			if err != nil {
-				return nil, fmt.Errorf("creating listing entry: %w", err)
+				return nil, nil, fmt.Errorf("creating listing entry: %w", err)
 			}
 
 			// Append to ls
 			if m[f].Pinned {
-				ls[dir] = append([]listing.Listing{ld}, ls[dir]...)
+				ls[dirI] = append([]listing.Listing{ld}, ls[dirI]...)
 				continue
 			}
-			ls[dir] = append(ls[dir], ld)
+			ls[dirI] = append(ls[dirI], ld)
 		}
 	}
-	return ls, err
+	return ls, missing, err
 }
 
 // Create a listing entry for f
-func makeListingEntry(f string, inDir string, m parse.Metadata) (listing.Listing, error) {
-	// Stat files/directories
-	fst, err := os.Stat(f)
-	if err != nil {
-		return listing.Listing{}, fmt.Errorf("stat files: %w", err)
-	}
-
-	ld := listing.Listing{}
-
-	// Grab href target, different for file vs. dir
-	ld.IsDir = fst.Mode().IsDir()
-	switch mode := fst.Mode(); {
-	case mode.IsDir():
+func makeListingEntry(
+	ld listing.Listing,
+	f string,
+	inDir string,
+	m map[string]parse.Metadata,
+	isExt bool,
+) (listing.Listing, error) {
+	// Get Href
+	if ld.IsDir {
 		target := util.GetRelativeFilePath(f, inDir)
-		ld.Href = target
 		ld.Title = target
+		if isExt {
+			target += "/index.html"
+		}
+		ld.Href = target
 		// Switch target to index for title & description
 		f += "/index.md"
-	case mode.IsRegular():
-		ld.Href = util.ResolveHref(f, inDir)
+	} else {
+		target := util.ResolveHref(f, inDir)
+		if isExt {
+			target += ".html"
+		}
+		ld.Href = target
 	}
 
 	// Grab titles and description.
 	// If metadata has title -> use that.
 	// If not -> use filename only if entry is not a directory
-	if len(m.Title) > 0 {
-		ld.Title = m.Title
+	if len(m[f].Title) > 0 {
+		ld.Title = m[f].Title
 	} else if !ld.IsDir {
 		ld.Title = util.GetFileBase(f)
 	}
-	ld.Description = m.Description
+	ld.Description = m[f].Description
 
 	return ld, nil
 }

@@ -48,6 +48,17 @@ type Metadata struct {
 	Layout      string   `yaml:"layout"`
 }
 
+func DefaultMetadata() Metadata {
+	return Metadata{
+		Pinned:     false,
+		Unlisted:   false,
+		ShowHeader: true,
+		Layout:     "list",
+		Draft:      false,
+		TOC:        false,
+	}
+}
+
 // Custom texter for heading anchors.
 type customTexter struct{}
 
@@ -76,15 +87,7 @@ func convert(b []byte, r goldmark.Markdown) ([]byte, Metadata, error) {
 			fmt.Errorf("converting to markdown: %w", err)
 	}
 
-	// Defaults
-	md := Metadata{
-		Pinned:     false,
-		Unlisted:   false,
-		ShowHeader: true,
-		Layout:     "list",
-		Draft:      false,
-		TOC:        false,
-	}
+	md := DefaultMetadata()
 
 	// Decode frontmatter
 	d := frontmatter.Get(ctx)
@@ -115,7 +118,7 @@ func IsDraft(md Metadata) bool {
 
 // Read in b and parse body.
 // Frontmatter is reprocessed to strip it.
-func ParseFile(b []byte, isToc bool, isHighlight bool) ([]byte, error) {
+func ParseSource(b []byte, isToc bool, isHighlight bool) ([]byte, error) {
 	ext := []goldmark.Extender{
 		&anchor.Extender{
 			Texter: &customTexter{},
@@ -200,4 +203,55 @@ func ParseWikilinks(b []byte) ([]string, error) {
 		return nil, fmt.Errorf("extracting links: %w", err)
 	}
 	return links, nil
+}
+
+// Parse b to find all other links within the document.
+func ParseInternalLinks(b []byte) ([]string, []string, error) {
+	var ilinks []string
+	var blinks []string
+	t := text.NewReader(b)
+	wp := wikilink.Parser{}
+
+	// Construct custom parser with lighter options
+	wikilinkParser := util.Prioritized(&wp, 199)
+	linkParser := util.Prioritized(parser.NewLinkParser(), 200)
+	paragraphParser := util.Prioritized(parser.NewParagraphParser(), 1000)
+	listParser := util.Prioritized(parser.NewListParser(), 300)
+	listItemParser := util.Prioritized(parser.NewListItemParser(), 400)
+	BlockquoteParser := util.Prioritized(parser.NewBlockquoteParser(), 800)
+	z := parser.NewParser(parser.WithBlockParsers([]util.PrioritizedValue{
+		paragraphParser,
+		listItemParser,
+		listParser,
+		BlockquoteParser}...),
+		parser.WithInlineParsers(
+			[]util.PrioritizedValue{
+				wikilinkParser,
+				linkParser}...),
+		parser.WithParagraphTransformers(),
+	)
+
+	// Parse and walk through nodes to find wikilinks
+	p := z.Parse(t)
+	walker := func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if !entering {
+			return ast.WalkContinue, nil
+		}
+		switch n := n.(type) {
+		case *ast.Image:
+			t := string(n.Destination)
+			ilinks = append(ilinks, t)
+		case *wikilink.Node:
+			t := string(n.Target)
+			blinks = append(blinks, t)
+		default:
+			return ast.WalkContinue, nil
+		}
+		return ast.WalkContinue, nil
+	}
+	err := ast.Walk(p, walker)
+	if err != nil {
+		return nil, nil, fmt.Errorf("extracting images: %w", err)
+	}
+	return blinks, ilinks, nil
 }

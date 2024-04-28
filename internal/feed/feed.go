@@ -13,6 +13,7 @@ import (
 func MakeFeed(
 	cfg config.Config,
 	m map[string]parse.Metadata,
+	c map[string][]byte,
 	h map[string]string,
 ) (string, error) {
 	now := time.Now()
@@ -41,6 +42,7 @@ func MakeFeed(
 			Description: v.Description,
 			Author:      author,
 			Created:     t,
+			Content:     string(c[k]),
 		}
 		feed.Items = append(feed.Items, entry)
 	}

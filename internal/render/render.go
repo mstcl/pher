@@ -42,6 +42,7 @@ type RenderData struct {
 	MachineDateUpdated string
 	Listing            []listing.Listing
 	TagsListing        []tags.Tag
+	Ext                string
 }
 
 // Recombine all the data from different places before rendering.
@@ -55,6 +56,7 @@ func ConstructData(
 	cr []string,
 	cl []string,
 	filename string,
+	isExt bool,
 ) (RenderData, error) {
 
 	d := RenderData{}
@@ -92,6 +94,12 @@ func ConstructData(
 		if err != nil {
 			return RenderData{}, fmt.Errorf("time parse: %w", err)
 		}
+	}
+
+	if isExt {
+		d.Ext = ".html"
+	} else {
+		d.Ext = ""
 	}
 
 	return d, nil
@@ -169,18 +177,11 @@ func RenderAll(
 			continue
 		}
 
-		// Get output path
-		chunks := util.GetRelativeFilePath(f, inDir)
-		chunks = util.GetFilePath(chunks)
-		if len(chunks) > 0 {
-			chunks += "/"
-		}
-		base := util.GetFileBase(f) + ".html"
-
 		// Get navigation crumbs
-		cr, cl := util.GetCrumbs(chunks)
+		cr, cl := util.GetCrumbs(f, inDir, cfg.IsExt)
 
-		o := outDir + "/" + chunks + base
+		// Get output path
+		o := util.ResolveOutPath(f, inDir, outDir, ".html")
 
 		// Construct data before rendering
 		d, err := ConstructData(
@@ -193,6 +194,7 @@ func RenderAll(
 			cr,
 			cl,
 			util.GetFileBase(f),
+			cfg.IsExt,
 		)
 		if err != nil {
 			return fmt.Errorf("construct render data: %w", err)

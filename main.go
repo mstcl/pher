@@ -24,6 +24,7 @@ import (
 	"github.com/mstcl/pher.git/internal/config"
 	"github.com/mstcl/pher.git/internal/extract"
 	"github.com/mstcl/pher.git/internal/feed"
+	"github.com/mstcl/pher.git/internal/parse"
 	"github.com/mstcl/pher.git/internal/render"
 	"github.com/mstcl/pher.git/internal/util"
 )
@@ -62,7 +63,11 @@ func main() {
 	)
 	flag.Parse()
 
-	// Handle directories
+	// Check fs
+	cfgFile, err = filepath.Abs(cfgFile)
+	if err != nil {
+		_ = fmt.Errorf("config file: %w", err)
+	}
 	inDir, err = filepath.Abs(inDir)
 	if err != nil {
 		_ = fmt.Errorf("input directory: %w", err)
@@ -101,16 +106,35 @@ func main() {
 	}
 	files = util.ReorderFiles(files)
 
-	// Populate metadata, content, indexes, tags, related links, and hrefs
-	m, c, b, t, rl, h, err := extract.Extract(files, inDir, cfg.CodeHighlight)
+	// Populate metadata, content, indexes, tags, related links, hrefs and
+	// internal links
+	m, c, b, t, rl, h, i, err := extract.Extract(
+		files,
+		inDir,
+		cfg.CodeHighlight,
+		cfg.IsExt,
+	)
 	if err != nil {
 		_ = fmt.Errorf("processing files: %w", err)
 	}
 
 	// Populate listing for indexes
-	l, err := extract.ExtractIndexListing(inDir, m)
+	// Additionally make listings if there are none
+	l, missing, err := extract.ExtractIndexListing(inDir, m, cfg.IsExt)
 	if err != nil {
 		_ = fmt.Errorf("indexing listing: %w", err)
+	}
+	for k := range missing {
+		files = append(files, k)
+		md := parse.DefaultMetadata()
+		md.Title = util.GetFilePath(util.GetRelativeFilePath(k, inDir))
+		m[k] = md
+	}
+
+	// Copy asset dirs/files over to outDir
+	err = util.CopyExtraFiles(inDir, outDir, i)
+	if err != nil {
+		_ = fmt.Errorf("mkdir: %w", err)
 	}
 
 	// Fetch templates
@@ -121,13 +145,14 @@ func main() {
 	}
 
 	// Render
-	err = render.RenderAll(m, c, b, l, t, rl, inDir, outDir, tpl, cfg, files, isDry)
+	err = render.RenderAll(m, c, b, l, t, rl, inDir, outDir, tpl, cfg, files,
+		isDry)
 	if err != nil {
 		_ = fmt.Errorf("render files: %w", err)
 	}
 
 	// Make feed
-	atom, err := feed.MakeFeed(*cfg, m, h)
+	atom, err := feed.MakeFeed(*cfg, m, c, h)
 	if err != nil {
 		_ = fmt.Errorf("make atom feed: %w", err)
 	}

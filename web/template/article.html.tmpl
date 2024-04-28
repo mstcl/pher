@@ -14,14 +14,14 @@
 		  <div><a><time datetime={{.MachineDate}}>{{.Date}}</time></a></div>
 		  {{- end -}}
 		  {{- if .DateUpdated}}
-		  <div><a><time datetime={{.MachineDateUpdated}}>{{.DateUpdated}}</time></a></div>
+		  <div><a><time datetime={{.MachineDateUpdated}}>Upd. {{.DateUpdated}}</time></a></div>
 		  {{- end -}}
 		  {{- if .Tags}}
 		  <div>
 			<ul class="article-tags">
 			{{- range .Tags}}
 			  <li>
-				<a href="/tags#{{.}}">#{{.}}</a>
+				<a href="/tags.html#{{.}}">#{{.}}</a>
 			  </li>
 			{{- end}}
 			</ul>

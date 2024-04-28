@@ -14,9 +14,10 @@ there are a few differences:
   [extension](https://github.com/abhinav/goldmark-wikilink).
 - No CSS framework.
 - Comes a small standalone binary (~13M). No need for a runtime.
-- Slight visual tweaks (personal preference).
-- The atom feed contains only dated entries
-- The atom feed does not have the full text (RSS clients apps can handle this).
+- Some visual tweaks (personal preference).
+- The atom feed contains only dated entries.
+- Flatter file structure (no "rooting" every page). Let webservers handle the
+  routing and beautifying.
 
 ## Installation
 
@@ -50,6 +51,7 @@ authorEmail: "" # author's email
 # rendering options
 rootCrumb: "~" # render root link in navbar with this string.
 codeHighlight: true # render code with syntax highlighting.
+keepExtension: true # render hrefs with .html extension
 
 # footer links, leave empty e.g. `footer: []` to disable
 footer:
@@ -84,6 +86,9 @@ head: "" # String to inject inside HTML <head>
 
 - [x] Implement navigation breadcrumbs
 - [x] Listing (lists/grid)
+- [ ] Listing (log)
+- [x] Default listing if there is none
+- [x] Copy linked assets over
 - [x] Fix TOC
 - [x] Implement logic
   - [x] hiding TOC
@@ -95,11 +100,34 @@ head: "" # String to inject inside HTML <head>
 - [x] Configuration to inject into HTML <head>
 - [x] Frontmatter field for `dateUpdated`
 
+## Ideas
+
+- [ ] Compress images to webp or mozilla jpeb
+
 ## Notes
+
+### Editing templates
 
 pher embeds the templates in `web/templates` with go:embed. This means pher can
 run as a standalone binary. Unfortunately, to modify the templates, we have to
 recompile.
+
+### Removing html extension
+
+To strip extension using webservers, we might have to make the following
+adjustments:
+
+```nginx
+location / {
+  if ( $request_uri ~ "/index.html" ) {
+    rewrite ^(.*)/ $1/ permanent;
+  }
+  try_files $uri $uri/ =404;
+}
+```
+
+Additionally, setting `keepExtension: false` will strip ".html" from href
+links. This might be necessary if you use weird browsers that break redirects.
 
 ## Credits
 

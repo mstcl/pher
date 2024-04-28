@@ -59,7 +59,7 @@ func Extract(files []string, inDir string, isHighlight bool, isExt bool) (
 		// Resolve basic vars
 		path := util.GetFilePath(f)
 		base := util.GetFileBase(f)
-		href := util.ResolveHref(f, inDir)
+		href := util.ResolveHref(f, inDir, true)
 		if isExt {
 			href += ".html"
 		}
@@ -335,7 +335,7 @@ func makeListingEntry(
 		// Switch target to index for title & description
 		f += "/index.md"
 	} else {
-		target := util.ResolveHref(f, inDir)
+		target := util.ResolveHref(f, inDir, false)
 		if isExt {
 			target += ".html"
 		}

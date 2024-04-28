@@ -108,13 +108,16 @@ func ResolveTitle(mt string, fn string) string {
 }
 
 // Return the href
-func ResolveHref(f string, inDir string) string {
+func ResolveHref(f string, inDir string, prefixSlash bool) string {
 	var href string
 	rel := GetFilePath(GetRelativeFilePath(f, inDir))
 	if len(rel) > 0 {
-		href = "/" + rel + "/" + GetFileBase(f)
+		href = rel + "/" + GetFileBase(f)
 	} else {
-		href = "/" + GetFileBase(f)
+		href = GetFileBase(f)
+	}
+	if prefixSlash {
+		href = "/" + href
 	}
 	return href
 }

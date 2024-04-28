@@ -1,0 +1,89 @@
+{{define "aside"}}
+  <aside class="links">
+  {{- if .Listing}}
+	<section id="Links to this page">
+	  <h6 class="section-heading">Pages</h6>
+	  {{- if eq .Layout "list"}}
+	  <ul>
+	  {{- range .Listing}}
+		<li>
+		  <div class="links-info">
+		  <a class="links-title" href="{{.Href}}">{{.Title}}{{- if .IsDir }} /{{- end}}
+		  {{- if .Description}}
+		  <span class="links-description">— {{.Description}}</span>
+		  {{- end}}
+		  </a>
+		  </div>
+		</li>
+	  {{- end}}
+	  </ul>
+	  {{- end}}
+	  {{- if eq .Layout "grid"}}
+	  <ul class="index-grid">
+	  {{- range .Listing}}
+    <div class="links-info-grid">
+    <a href="{{.Href}}">
+    <span class="links-title-grid">{{.Title}}{{- if .IsDir }} /{{- end}}</span>
+    {{- if .Description}}
+    <span class="links-description-grid">{{.Description}}</span>
+    {{- end}}
+    </a>
+    </div>
+	  {{- end}}
+	  </ul>
+	  {{- end}}
+	</section>
+  {{- end}}
+  {{- if .Backlinks}}
+	<section id="Links to this page">
+	  <h6 class="section-heading">Links to this page</h6>
+	  <ul>
+	  {{- range .Backlinks}}
+		<li>
+		  <div class="links-info">
+		  <a class="links-title" href="{{.Href}}">{{.Title}}
+		  {{- if .Description}}
+		  <span class="links-description">— {{.Description}}</span>
+		  {{- end}}
+		  </a>
+		  </div>
+		</li>
+	  {{- end}}
+	  </ul>
+	</section>
+	{{- end}}
+  {{- if .Relatedlinks}}
+	<section id="Related">
+	  <h6 class="section-heading">Related</h6>
+	  <ul>
+	  {{- range .Relatedlinks}}
+		<li>
+		  <div class="links-info">
+		  <a class="links-title" href="{{.Href}}">{{.Title}}
+		  {{- if .Description}}
+		  <span class="links-description">— {{.Description}}</span>
+		  {{- end}}
+		  </a>
+		  </div>
+		</li>
+	  {{- end}}
+	  </ul>
+	</section>
+	{{- end}}
+	{{- if .TagsListing}}
+	<section id="Tags">
+	  <h6 class="section-heading">Tags</h6>
+	  <ul class="tags-listing">
+	  {{- range .TagsListing}}
+		<li>
+		  <a class="tags-title" href="/tags#{{.Name}}">{{.Name}}
+		  <span>{{.Count}}</span>
+		  </a>
+		  </div>
+		</li>
+	  {{- end}}
+	  </ul>
+	</section>
+	{{- end}}
+  </aside>
+{{end}}

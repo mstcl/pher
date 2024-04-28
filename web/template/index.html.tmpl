@@ -1,0 +1,18 @@
+{{define "index"}}
+<!DOCTYPE html>
+<html>
+{{- template "head" . -}}
+  <body>
+  {{- template "header" .}}
+  <main>
+  {{- template "article" .}}
+  </main>
+  {{- if or .Backlinks .Listing}}
+  {{- template "aside" . -}}
+  {{- end}}
+  {{- if .Footer}}
+  {{- template "footer" . -}}
+  {{- end}}
+  </body>
+</html>
+{{end}}

@@ -1,0 +1,13 @@
+{{define "header"}}
+  <header class="article-header">
+	<nav>
+	<a href="/">{{.RootCrumb}} </a>
+	{{- range .Crumbs}}
+	<a href="/{{.Href}}"> {{.Title}} </a>
+	{{- end}}
+	{{- if ne .Filename "index" }}
+	<span>{{.Filename}}</span>
+	{{- end}}
+	</nav>
+  </header>
+{{end}}

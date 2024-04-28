@@ -1,0 +1,37 @@
+{{define "tags"}}
+<!DOCTYPE html>
+<html>
+  {{- template "head" . -}}
+  <body>
+	<header class="article-header">
+	  <nav>
+		<a href="/">{{.RootCrumb}} </a>
+		<span>tags</span>
+	  </nav>
+	</header>
+	<aside class="links">
+	{{- range .TagsListing}}
+	<section id="{{.Name}}" class="tag">
+	<h6 class="section-heading">{{.Name}}</h6>
+	<ul>
+	{{- range .Links}}
+	  <li>
+		<div class="links-info">
+		<a class="links-title" href="{{.Href}}">{{.Title}}
+		{{- if .Description}}
+		<span class="links-description">— {{.Description}}</span>
+		{{- end}}
+		</a>
+		</div>
+	  </li>
+	{{- end}}
+	</ul>
+	</section>
+	{{- end}}
+	</aside>
+  {{- if .Footer}}
+  {{- template "footer" . -}}
+  {{- end}}
+  </body>
+</html>
+{{end}}

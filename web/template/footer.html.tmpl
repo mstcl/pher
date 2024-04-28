@@ -1,0 +1,12 @@
+{{define "footer"}}
+  <footer>
+	<hr>
+	<ul class="footer-links">
+{{- range .Footer}}
+	  <li>
+		<a href="{{.Href}}">{{.Text}}</a>
+	  </li>
+{{- end}}
+	</ul>
+  </footer>
+{{end}}

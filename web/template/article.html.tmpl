@@ -1,0 +1,36 @@
+{{define "article"}}
+	<article>
+	  {{- if .ShowHeader}}
+	  <header>
+		{{if .Title -}}
+		<h1 class="article-title">{{.Title}}</h1>
+		{{- end}}
+		{{- if .Description}}
+		<p class="article-description">{{.Description}}</p>
+		{{- end}}
+		{{- if or .Tags .Date}}
+		<div class="article-meta">
+		  {{- if .Date}}
+		  <div><a><time datetime={{.MachineDate}}>{{.Date}}</time></a></div>
+		  {{- end -}}
+		  {{- if .DateUpdated}}
+		  <div><a><time datetime={{.MachineDateUpdated}}>{{.DateUpdated}}</time></a></div>
+		  {{- end -}}
+		  {{- if .Tags}}
+		  <div>
+			<ul class="article-tags">
+			{{- range .Tags}}
+			  <li>
+				<a href="/tags#{{.}}">#{{.}}</a>
+			  </li>
+			{{- end}}
+			</ul>
+		  </div>
+		  {{- end}}
+		</div>
+		{{- end}}
+	  </header>
+	  {{- end}}
+  {{.Body}}
+	</article>
+{{end}}

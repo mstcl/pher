@@ -22,7 +22,7 @@ there are a few differences:
 ## Installation
 
 ```bash
-$ go install github.com/mstcl/pher@latest
+$ go install github.com/mstcl/pher@master
 ```
 
 ## Usage

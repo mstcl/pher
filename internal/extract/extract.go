@@ -219,7 +219,7 @@ func ExtractIndexListing(
 ) (
 	map[string][]listing.Listing,
 	map[string]bool,
-	error,) {
+	error) {
 	ls := make(map[string][]listing.Listing)
 	missing := make(map[string]bool)
 	files, err := zglob.Glob(inDir + "/**/*")
@@ -284,13 +284,12 @@ func ExtractIndexListing(
 				if !entryExists {
 					continue
 				}
-				mf := f+"/index.md"
-				indexExists, err := util.IsFileExist(mf)
+				indexExists, err := util.IsFileExist(f + "/index.md")
 				if err != nil {
 					return nil, nil, fmt.Errorf("stat file: %w", err)
 				}
 				if !indexExists {
-					missing[mf] = true
+					missing[f+"/index.md"] = true
 				}
 			}
 
@@ -303,6 +302,10 @@ func ExtractIndexListing(
 			ld, err = makeListingEntry(ld, f, dir, m, isExt)
 			if err != nil {
 				return nil, nil, fmt.Errorf("creating listing entry: %w", err)
+			}
+
+			if IsDir {
+				f = f + "/index.md"
 			}
 
 			// Append to ls

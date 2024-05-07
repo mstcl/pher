@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+// Get the nesting-depth of a filepath
 func GetDepth(dir string) int {
 	return len(strings.Split(dir, "/"))
 }
@@ -49,8 +50,7 @@ func GetFileExt(f string) string {
 // OS delete given files
 func RemoveContents(contents []string) error {
 	for _, c := range contents {
-		err := os.RemoveAll(c)
-		if err != nil {
+		if err := os.RemoveAll(c); err != nil {
 			return fmt.Errorf("removing old output files: %w", err)
 		}
 	}
@@ -142,6 +142,8 @@ func ResolveOutPath(f string, inDir string, outDir string, newExt string) string
 	return o
 }
 
+// Resolve the date d from format YYYY-MM-DD
+// Returns a pretty date and a machine date
 func ResolveDate(d string) (string, string, error) {
 	dt, err := time.Parse("2006-01-02", d)
 	if err != nil {
@@ -150,6 +152,8 @@ func ResolveDate(d string) (string, string, error) {
 	return dt.Format("02 Jan 2006"), dt.Format(time.RFC3339), nil
 }
 
+// Move extra files like assets (images, fonts, css) over to output, preserving
+// the structure.
 func CopyExtraFiles(inDir string, outDir string, files map[string]bool) error {
 	// Copy keys of i (internal image links) to outDir
 	for k := range files {
@@ -157,8 +161,7 @@ func CopyExtraFiles(inDir string, outDir string, files map[string]bool) error {
 
 		// Make dir to preserver structure
 		dirOut := GetFilePath(out)
-		err := os.MkdirAll(dirOut, os.ModePerm)
-		if err != nil {
+		if err := os.MkdirAll(dirOut, os.ModePerm); err != nil {
 			return fmt.Errorf("mkdir: %w", err)
 		}
 
@@ -167,8 +170,7 @@ func CopyExtraFiles(inDir string, outDir string, files map[string]bool) error {
 		if err != nil {
 			return fmt.Errorf("read file: %w", err)
 		}
-		err = os.WriteFile(out, b, 0644)
-		if err != nil {
+		if err = os.WriteFile(out, b, 0644); err != nil {
 			return fmt.Errorf("write file: %w", err)
 		}
 	}
@@ -186,9 +188,9 @@ func IsEntryPresent(f string) (bool, error) {
 	return true, nil
 }
 
+// Return true/false if a path exists/doesn't exist
 func IsFileExist(f string) (bool, error) {
-	_, err := os.Stat(f)
-	if err != nil {
+	if _, err := os.Stat(f); err != nil {
 		if os.IsNotExist(err) {
 			return false, nil
 		} else {
@@ -198,6 +200,25 @@ func IsFileExist(f string) (bool, error) {
 	return true, nil
 }
 
+// Given filename.ext, return filename
 func RemoveExtension(f string) string {
 	return strings.TrimSuffix(f, filepath.Ext(f))
+}
+
+// Ensure directory exists
+func EnsureDir(dirName string) error {
+    if err := os.Mkdir(dirName, os.ModeDir); err == nil {
+        return nil
+    } else if os.IsExist(err) {
+        // check that the existing path is a directory
+        info, err := os.Stat(dirName)
+        if err != nil {
+            return err
+        }
+        if !info.IsDir() {
+            return fmt.Errorf("path exists but is not a directory")
+        }
+        return nil
+    }
+    return nil
 }

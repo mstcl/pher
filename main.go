@@ -17,7 +17,7 @@ import (
 	"flag"
 	"fmt"
 	"html/template"
-	"os"
+	"log"
 	"path/filepath"
 
 	"github.com/mattn/go-zglob"
@@ -63,46 +63,54 @@ func main() {
 	)
 	flag.Parse()
 
-	// Check fs
+	// Get absolute path
 	cfgFile, err = filepath.Abs(cfgFile)
 	if err != nil {
-		_ = fmt.Errorf("config file: %w", err)
+		log.Fatal(fmt.Errorf("config file: %w", err))
 	}
 	inDir, err = filepath.Abs(inDir)
 	if err != nil {
-		_ = fmt.Errorf("input directory: %w", err)
+		log.Fatal(fmt.Errorf("input directory: %w", err))
 	}
 	outDir, err = filepath.Abs(outDir)
 	if err != nil {
-		_ = fmt.Errorf("output directory: %w", err)
+		log.Fatal(fmt.Errorf("output directory: %w", err))
 	}
-	err = os.Mkdir(outDir, 0775)
-	if err != nil {
-		_ = fmt.Errorf("make directory: %w", err)
+
+	// Check paths
+	ps := []string{cfgFile, inDir, outDir}
+	for _, p := range ps {
+		if fExist, err := util.IsFileExist(p); err != nil {
+			log.Fatal(fmt.Errorf("stat file: %w", err))
+		} else if !fExist {
+			log.Fatal(fmt.Errorf("no such file or directory: %s", p))
+		}
+	}
+	if err = util.EnsureDir(outDir); err != nil {
+		log.Fatal(fmt.Errorf("make directory: %w", err))
 	}
 
 	// Handle configuration
 	cfg, err := config.Read(cfgFile)
 	if err != nil {
-		_ = fmt.Errorf("read config: %w", err)
+		log.Fatal(fmt.Errorf("read config: %w", err))
 	}
 
 	// Clean output directory
 	if !isDry {
 		contents, err := filepath.Glob(outDir + "/*")
 		if err != nil {
-			_ = fmt.Errorf("glob files: %w", err)
+			log.Fatal(fmt.Errorf("glob files: %w", err))
 		}
-		err = util.RemoveContents(contents)
-		if err != nil {
-			_ = fmt.Errorf("rm files: %w", err)
+		if err = util.RemoveContents(contents); err != nil {
+			log.Fatal(fmt.Errorf("rm files: %w", err))
 		}
 	}
 
 	// Grab files and reorder so indexes are processed last
 	files, err := zglob.Glob(inDir + "/**/*.md")
 	if err != nil {
-		_ = fmt.Errorf("glob files: %w", err)
+		log.Fatal(fmt.Errorf("glob files: %w", err))
 	}
 	files = util.ReorderFiles(files)
 
@@ -115,14 +123,14 @@ func main() {
 		cfg.IsExt,
 	)
 	if err != nil {
-		_ = fmt.Errorf("processing files: %w", err)
+		log.Fatal(fmt.Errorf("processing files: %w", err))
 	}
 
 	// Populate listing for indexes
 	// Additionally make listings if there are none
 	l, missing, err := extract.ExtractIndexListing(inDir, m, cfg.IsExt)
 	if err != nil {
-		_ = fmt.Errorf("indexing listing: %w", err)
+		log.Fatal(fmt.Errorf("indexing listing: %w", err))
 	}
 	for k := range missing {
 		files = append(files, k)
@@ -132,32 +140,29 @@ func main() {
 	}
 
 	// Copy asset dirs/files over to outDir
-	err = util.CopyExtraFiles(inDir, outDir, i)
-	if err != nil {
-		_ = fmt.Errorf("mkdir: %w", err)
+	if err = util.CopyExtraFiles(inDir, outDir, i); err != nil {
+		log.Fatal(fmt.Errorf("mkdir: %w", err))
 	}
 
 	// Fetch templates
 	tplDir := "web/template"
 	tpl := template.Must(template.ParseFS(tDirFs, filepath.Join(tplDir, "*")))
 	if err != nil {
-		_ = fmt.Errorf("template directory: %w", err)
+		log.Fatal(fmt.Errorf("template directory: %w", err))
 	}
 
 	// Render
-	err = render.RenderAll(m, c, b, l, t, rl, inDir, outDir, tpl, cfg, files,
-		isDry)
-	if err != nil {
-		_ = fmt.Errorf("render files: %w", err)
+	if err = render.RenderAll(m, c, b, l, t, rl, inDir,
+		outDir, tpl, cfg, files, isDry); err != nil {
+		log.Fatal(fmt.Errorf("render files: %w", err))
 	}
 
 	// Make feed
 	atom, err := feed.MakeFeed(*cfg, m, c, h)
 	if err != nil {
-		_ = fmt.Errorf("make atom feed: %w", err)
+		log.Fatal(fmt.Errorf("make atom feed: %w", err))
 	}
-	err = feed.SaveFeed(outDir, atom, isDry)
-	if err != nil {
-		_ = fmt.Errorf("write atom feed: %w", err)
+	if err = feed.SaveFeed(outDir, atom, isDry); err != nil {
+		log.Fatal(fmt.Errorf("write atom feed: %w", err))
 	}
 }

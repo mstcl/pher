@@ -109,21 +109,18 @@ func ConstructData(
 func Render(o string, t *template.Template, d RenderData, isDry bool) error {
 	// Template the current file
 	w := new(bytes.Buffer)
-	err := t.ExecuteTemplate(w, "index", d)
-	if err != nil {
+	if err := t.ExecuteTemplate(w, "index", d); err != nil {
 		return fmt.Errorf("templating: %w", err)
 	}
 
 	// Ensure output directory exists
-	err = os.MkdirAll(util.GetFilePath(o), os.ModePerm)
-	if err != nil {
+	if err := os.MkdirAll(util.GetFilePath(o), os.ModePerm); err != nil {
 		return fmt.Errorf("mkdir: %w", err)
 	}
 
 	// Save output html to disk
 	if !isDry {
-		err = os.WriteFile(o, w.Bytes(), 0644)
-		if err != nil {
+		if err := os.WriteFile(o, w.Bytes(), 0644); err != nil {
 			return fmt.Errorf("writing article: %w", err)
 		}
 	}
@@ -134,21 +131,18 @@ func Render(o string, t *template.Template, d RenderData, isDry bool) error {
 func RenderTags(o string, t *template.Template, d RenderData, isDry bool) error {
 	// Template the current file
 	w := new(bytes.Buffer)
-	err := t.ExecuteTemplate(w, "tags", d)
-	if err != nil {
+	if err := t.ExecuteTemplate(w, "tags", d); err != nil {
 		return fmt.Errorf("templating: %w", err)
 	}
 
 	// Ensure output directory exists
-	err = os.MkdirAll(util.GetFilePath(o), os.ModePerm)
-	if err != nil {
+	if err := os.MkdirAll(util.GetFilePath(o), os.ModePerm); err != nil {
 		return fmt.Errorf("mkdir: %w", err)
 	}
 
 	// Save output html to disk
 	if !isDry {
-		err = os.WriteFile(o, w.Bytes(), 0644)
-		if err != nil {
+		if err := os.WriteFile(o, w.Bytes(), 0644); err != nil {
 			return fmt.Errorf("writing article: %w", err)
 		}
 	}
@@ -206,8 +200,7 @@ func RenderAll(
 		}
 
 		// Render
-		err = Render(o, tpl, d, isDry)
-		if err != nil {
+		if err = Render(o, tpl, d, isDry); err != nil {
 			return fmt.Errorf("render html: %w", err)
 		}
 	}
@@ -217,8 +210,7 @@ func RenderAll(
 		Footer:      cfg.Footer,
 		TagsListing: t,
 	}
-	err := RenderTags(outDir+"/tags.html", tpl, d, isDry)
-	if err != nil {
+	if err := RenderTags(outDir+"/tags.html", tpl, d, isDry); err != nil {
 		return fmt.Errorf("render html: %w", err)
 	}
 	return nil

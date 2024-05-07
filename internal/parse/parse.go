@@ -80,8 +80,7 @@ func convert(b []byte, r goldmark.Markdown) ([]byte, Metadata, error) {
 	ctx := parser.NewContext()
 
 	// err := r.Renderer().Render(w, b, p)
-	err := r.Convert(b, w, parser.WithContext(ctx))
-	if err != nil {
+	if err := r.Convert(b, w, parser.WithContext(ctx)); err != nil {
 		return nil,
 			Metadata{},
 			fmt.Errorf("converting to markdown: %w", err)
@@ -91,8 +90,7 @@ func convert(b []byte, r goldmark.Markdown) ([]byte, Metadata, error) {
 
 	// Decode frontmatter
 	d := frontmatter.Get(ctx)
-	err = d.Decode(&md)
-	if err != nil {
+	if err := d.Decode(&md); err != nil {
 		return nil,
 			Metadata{},
 			fmt.Errorf("decoding frontmatter: %w", err)

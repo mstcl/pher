@@ -60,8 +60,7 @@ func SaveFeed(outDir, atom string, isDry bool) error {
 		return nil
 	}
 	b := []byte(atom)
-	err := os.WriteFile(outDir+"/feed.xml", b, 0644)
-	if err != nil {
+	if err := os.WriteFile(outDir+"/feed.xml", b, 0644); err != nil {
 		return fmt.Errorf("writing article: %w", err)
 	}
 	return nil

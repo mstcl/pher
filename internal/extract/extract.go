@@ -265,7 +265,7 @@ func ExtractIndexListing(
 			}
 
 			// Skip non-markdon files
-			if util.GetFileExt(f) != ".md" && !IsDir {
+			if !IsDir && util.GetFileExt(f) != ".md" {
 				continue
 			}
 

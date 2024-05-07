@@ -78,7 +78,7 @@ func ReorderFiles(files []string) []string {
 //
 // crumbLinks is {"/foo", "/foo/bar"}
 func GetCrumbs(f string, inDir string, isExt bool) ([]string, []string) {
-	chunks := GetFilePath(GetRelativeFilePath(f, inDir))
+	chunks := GetRelativeFilePath(f, inDir)
 	crumbs := strings.Split(chunks, "/")
 	crumbLinks := []string{}
 	for i := range crumbs {

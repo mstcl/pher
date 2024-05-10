@@ -6,6 +6,11 @@
   {{- template "header" .}}
   <main>
   {{- template "article" .}}
+  {{- if eq .Layout "log"}}
+  {{- if .Listing}}
+  {{- template "log" .}}
+  {{end}}
+  {{end}}
   </main>
   {{- if or .Backlinks .Listing .Relatedlinks}}
   {{- template "aside" . -}}

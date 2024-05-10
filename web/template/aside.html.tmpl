@@ -1,4 +1,5 @@
 {{define "aside"}}
+{{- if ne .Layout "log"}}
   <aside class="links">
   {{- if .Listing}}
 	<section id="Links to this page">
@@ -86,4 +87,5 @@
 	</section>
 	{{- end}}
   </aside>
+{{- end}}
 {{end}}

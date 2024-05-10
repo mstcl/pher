@@ -207,18 +207,18 @@ func RemoveExtension(f string) string {
 
 // Ensure directory exists
 func EnsureDir(dirName string) error {
-    if err := os.Mkdir(dirName, os.ModeDir); err == nil {
-        return nil
-    } else if os.IsExist(err) {
-        // check that the existing path is a directory
-        info, err := os.Stat(dirName)
-        if err != nil {
-            return err
-        }
-        if !info.IsDir() {
-            return fmt.Errorf("path exists but is not a directory")
-        }
-        return nil
-    }
-    return nil
+	if err := os.Mkdir(dirName, os.ModeDir); err == nil {
+		return nil
+	} else if os.IsExist(err) {
+		// check that the existing path is a directory
+		info, err := os.Stat(dirName)
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			return fmt.Errorf("path exists but is not a directory")
+		}
+		return nil
+	}
+	return nil
 }

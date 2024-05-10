@@ -77,7 +77,7 @@ unlisted: false # Remove entry from the listing
 draft: false # Don't render this entry
 toc: false # Render a table of contents for this entry
 showHeader: true # Show the header (title, description, tags, date)
-layout: "list" # Available values: "grid", "list". Only for index entry of each subdirectory.
+layout: "list" # Available values: "grid", "list", "log". Only effective for index.md files.
 head: "" # String to inject inside HTML <head>
 ---
 ```
@@ -86,7 +86,7 @@ head: "" # String to inject inside HTML <head>
 
 - [x] Implement navigation breadcrumbs
 - [x] Listing (lists/grid)
-- [ ] Listing (log)
+- [x] Listing (log)
 - [x] Default listing if there is none
 - [x] Copy linked assets over
 - [x] Fix TOC

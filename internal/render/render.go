@@ -10,7 +10,6 @@ import (
 	"github.com/mstcl/pher/internal/config"
 	"github.com/mstcl/pher/internal/listing"
 	"github.com/mstcl/pher/internal/parse"
-	"github.com/mstcl/pher/internal/tags"
 	"github.com/mstcl/pher/internal/util"
 )
 
@@ -41,7 +40,7 @@ type RenderData struct {
 	MachineDate        string
 	MachineDateUpdated string
 	Listing            []listing.Listing
-	TagsListing        []tags.Tag
+	TagsListing        []listing.Tag
 	Ext                string
 }
 
@@ -110,7 +109,7 @@ func Render(o string, t *template.Template, d RenderData, isDry bool) error {
 	// Template the current file
 	w := new(bytes.Buffer)
 	if err := t.ExecuteTemplate(w, "index", d); err != nil {
-		return fmt.Errorf("templating: %w", err)
+		return err
 	}
 
 	// Ensure output directory exists
@@ -132,7 +131,7 @@ func RenderTags(o string, t *template.Template, d RenderData, isDry bool) error 
 	// Template the current file
 	w := new(bytes.Buffer)
 	if err := t.ExecuteTemplate(w, "tags", d); err != nil {
-		return fmt.Errorf("templating: %w", err)
+		return err
 	}
 
 	// Ensure output directory exists
@@ -155,7 +154,7 @@ func RenderAll(
 	c map[string][]byte,
 	b map[string][]listing.Listing,
 	l map[string][]listing.Listing,
-	t []tags.Tag,
+	t []listing.Tag,
 	rl map[string][]listing.Listing,
 	inDir string,
 	outDir string,
@@ -163,11 +162,12 @@ func RenderAll(
 	cfg *config.Config,
 	files []string,
 	isDry bool,
+	skip map[string]bool,
 ) error {
 	// depth := GetDepth(inDir)
 	for _, f := range files {
-		// Don't render drafts
-		if parse.IsDraft(m[f]) {
+		// Don't render drafts or skipped files
+		if parse.IsDraft(m[f]) || skip[f] {
 			continue
 		}
 
@@ -201,7 +201,7 @@ func RenderAll(
 
 		// Render
 		if err = Render(o, tpl, d, isDry); err != nil {
-			return fmt.Errorf("render html: %w", err)
+			return err
 		}
 	}
 	// Render tags page

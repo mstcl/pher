@@ -10,7 +10,7 @@ import (
 	"github.com/mstcl/pher/internal/parse"
 )
 
-func MakeFeed(
+func makeFeed(
 	cfg config.Config,
 	m map[string]parse.Metadata,
 	c map[string][]byte,
@@ -55,13 +55,31 @@ func MakeFeed(
 	return atom, nil
 }
 
-func SaveFeed(outDir, atom string, isDry bool) error {
+func saveFeed(outDir, atom string, isDry bool) error {
 	if isDry {
 		return nil
 	}
 	b := []byte(atom)
 	if err := os.WriteFile(outDir+"/feed.xml", b, 0644); err != nil {
 		return fmt.Errorf("writing article: %w", err)
+	}
+	return nil
+}
+
+func FetchFeed(
+	cfg config.Config,
+	m map[string]parse.Metadata,
+	c map[string][]byte,
+	h map[string]string,
+	outDir string,
+	isDry bool,
+) error {
+	atom, err := makeFeed(cfg, m, c, h)
+	if err != nil {
+		return fmt.Errorf("make atom feed: %w", err)
+	}
+	if err := saveFeed(outDir, atom, isDry); err != nil {
+		return fmt.Errorf("write atom feed: %w", err)
 	}
 	return nil
 }

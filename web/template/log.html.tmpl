@@ -1,9 +1,9 @@
-{{define "article"}}
-    <article>
-      {{- if .ShowHeader}}
+{{define "log"}}
+    {{- range .Listing }}
+      <br><br><br>
       <header>
         {{if .Title -}}
-        <h1 class="article-title">{{.Title}}</h1>
+        <h2 class="article-title">{{.Title}}</h2>
         {{- end}}
         {{- if .Description}}
         <p class="article-description">{{.Description}}</p>
@@ -30,7 +30,6 @@
         </div>
         {{- end}}
       </header>
-      {{- end}}
-  {{.Body}}
-    </article>
+{{.Body}}
+    {{end}}
 {{end}}

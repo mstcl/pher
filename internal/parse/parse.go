@@ -100,13 +100,13 @@ func convert(b []byte, r goldmark.Markdown) ([]byte, Metadata, error) {
 }
 
 // Parse metadata (frontmatter) from source b.
-func ParseMetadata(b []byte) Metadata {
+func ParseMetadata(b []byte) (Metadata, error) {
 	r := goldmark.New(goldmark.WithExtensions(&frontmatter.Extender{}))
 	_, md, err := convert(b, r)
 	if err != nil {
-		_ = fmt.Errorf("convert markdown: %w", err)
+		return Metadata{}, fmt.Errorf("convert markdown: %w", err)
 	}
-	return md
+	return md, nil
 }
 
 // Is the file a draft?
@@ -158,51 +158,6 @@ func ParseSource(b []byte, isToc bool, isHighlight bool) ([]byte, error) {
 	return body, nil
 }
 
-// Parse b to find all wikilinks within the document.
-func ParseWikilinks(b []byte) ([]string, error) {
-	var links []string
-	t := text.NewReader(b)
-	wp := wikilink.Parser{}
-
-	// Construct custom parser with lighter options
-	wikilinkParser := util.Prioritized(&wp, 199)
-	paragraphParser := util.Prioritized(parser.NewParagraphParser(), 1000)
-	listParser := util.Prioritized(parser.NewListParser(), 300)
-	listItemParser := util.Prioritized(parser.NewListItemParser(), 400)
-	BlockquoteParser := util.Prioritized(parser.NewBlockquoteParser(), 800)
-	z := parser.NewParser(parser.WithBlockParsers([]util.PrioritizedValue{
-		paragraphParser,
-		listItemParser,
-		listParser,
-		BlockquoteParser}...),
-		parser.WithInlineParsers(wikilinkParser),
-		parser.WithParagraphTransformers(),
-	)
-
-	// Parse and walk through nodes to find wikilinks
-	p := z.Parse(t)
-	walker := func(n ast.Node, entering bool) (ast.WalkStatus, error) {
-		if !entering {
-			return ast.WalkContinue, nil
-		}
-		switch n.Kind() {
-		case wikilink.Kind:
-		default:
-			return ast.WalkContinue, nil
-		}
-		if l, ok := n.(*wikilink.Node); ok {
-			t := string(l.Target)
-			links = append(links, t)
-		}
-		return ast.WalkContinue, nil
-	}
-	err := ast.Walk(p, walker)
-	if err != nil {
-		return nil, fmt.Errorf("extracting links: %w", err)
-	}
-	return links, nil
-}
-
 // Parse b to find all other links within the document.
 func ParseInternalLinks(b []byte) ([]string, []string, error) {
 	var ilinks []string
@@ -229,7 +184,7 @@ func ParseInternalLinks(b []byte) ([]string, []string, error) {
 		parser.WithParagraphTransformers(),
 	)
 
-	// Parse and walk through nodes to find wikilinks
+	// Parse and walk through nodes to find internal links
 	p := z.Parse(t)
 	walker := func(n ast.Node, entering bool) (ast.WalkStatus, error) {
 		if !entering {
@@ -249,7 +204,7 @@ func ParseInternalLinks(b []byte) ([]string, []string, error) {
 	}
 	err := ast.Walk(p, walker)
 	if err != nil {
-		return nil, nil, fmt.Errorf("extracting images: %w", err)
+		return nil, nil, fmt.Errorf("error extracting internal links: %w", err)
 	}
 	return blinks, ilinks, nil
 }

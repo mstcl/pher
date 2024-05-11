@@ -11,25 +11,37 @@ import (
 	"github.com/mstcl/pher/internal/entry"
 	"github.com/mstcl/pher/internal/listing"
 	"github.com/mstcl/pher/internal/parse"
+	"github.com/mstcl/pher/internal/tag"
 	"github.com/mstcl/pher/internal/util"
 )
 
-// Process files to build content c, metadata m, links l.
-func Extract(files []string, inDir string, isHighlight bool, isExt bool) (
+// Process files to build up the entry data for all files, the tags data, and
+// the linked internal asset.
+// Exclusive calls to parse.* are made here.
+// Calls parse.ParseMetadata() to grab metadata.
+// Calls parse.ParseSource() to grab html body.
+// Calls parse.ParseInternalLinks() to grab backlinks and internal links.
+// Additionally construct the backlinks, relatedlinks, asset map and tags slice
+//
+// These are the returned data:
+//
+// d: entry.Entry (key: entry filename)
+//
+// i: linked internal assets (key: asset filename)
+func ExtractEntry(files []string, inDir string, isHighlight bool, isExt bool) (
 	map[string]entry.Entry,
-	[]listing.Tag,
+	[]tag.Tag,
 	map[string]bool,
 	error,
 ) {
-	// These are our data:
-	// d: entry.Entry (key: entry filename)
+	d := make(map[string]entry.Entry)
+	i := make(map[string]bool)
+
+	// These are local data:
 	// tc: tags count (key: tag name)
 	// tl: tags listing - files with this tag (key: tag name)
-	// i: linked internal assets (key: asset filename)
-	d := make(map[string]entry.Entry)
 	tc := make(map[string]int)
 	tl := make(map[string][]listing.Listing)
-	i := make(map[string]bool)
 
 	for _, f := range files {
 		entry := d[f]
@@ -111,7 +123,7 @@ func Extract(files []string, inDir string, isHighlight bool, isExt bool) (
 				return nil,
 					nil,
 					nil,
-					fmt.Errorf("error resolving path: %w", err)
+					fmt.Errorf("error get absolute paths: %w", err)
 			}
 			i[ref] = true
 		}
@@ -131,7 +143,7 @@ func Extract(files []string, inDir string, isHighlight bool, isExt bool) (
 				return nil,
 					nil,
 					nil,
-					fmt.Errorf("resolving path: %w", err)
+					fmt.Errorf("error get absolute paths: %w", err)
 			}
 			// Save backlinks
 			linkedEntry := d[ref]
@@ -157,7 +169,7 @@ func Extract(files []string, inDir string, isHighlight bool, isExt bool) (
 		if parse.IsDraft(entry.Metadata) || len(entry.Metadata.Tags) == 0 {
 			continue
 		}
-		entry.Relatedlinks = getUniqueRelLinks(f, inDir, entry.Metadata, tl)
+		entry.Relatedlinks = constructUniqueRelLinks(f, inDir, entry.Metadata, tl)
 		d[f] = entry
 	}
 
@@ -168,8 +180,9 @@ func Extract(files []string, inDir string, isHighlight bool, isExt bool) (
 	return d, t, i, nil
 }
 
-// For file f, find related links based on tags (populated in tl)
-func getUniqueRelLinks(
+// For a file f, find slice related links based on tags (populated in tl) such
+// that the slice is unique and does not contain f
+func constructUniqueRelLinks(
 	f string,
 	inDir string,
 	m parse.Metadata,
@@ -193,10 +206,17 @@ func getUniqueRelLinks(
 	return u
 }
 
-// For every index file present under subdir, populate its children to render
-// the listings, also return those with missing listing with format
-// `map[string]bool` where key is the index path that is missing.
-func extractIndexListing(
+// Get all nested directories (the parents), and call
+// extractChildrenEntries() to populate the children.
+// Returns:
+//
+// * listing: listing entries of parents.
+//
+// * missing: bool map of parent index paths that are missing.
+//
+// * skip: bool map of files that should not be rendered (because its parents
+// is displaying a log)
+func extractParentListings(
 	inDir string,
 	d map[string]entry.Entry,
 	isExt bool,
@@ -236,7 +256,7 @@ func extractIndexListing(
 			return nil, nil, nil,
 				fmt.Errorf("error globbing files %s/*: %w", dir, err)
 		}
-		ls, missing, skip, err = processChildrenEntries(
+		ls, missing, skip, err = extractChildrenEntries(
 			inDir, dir, isExt, d, children, missing, ls, skip,
 		)
 		if err != nil {
@@ -246,8 +266,11 @@ func extractIndexListing(
 	return ls, missing, skip, err
 }
 
-// Now go through all children under a parent directory
-func processChildrenEntries(
+// Sub-function to loop through depth 1 children inside the current parent
+// (parentDir) to populate and return the listing map, the missing map, and the
+// skip map. Additional calls constructListingEntry() to make individual listing
+// entry.
+func extractChildrenEntries(
 	inDir string,
 	parentDir string,
 	isExt bool,
@@ -322,7 +345,7 @@ func processChildrenEntries(
 		ld.IsDir = IsDir
 
 		// Construct the listing entry
-		ld, err = makeListingEntry(ld, f, parentDir, d, isExt, isLog)
+		ld, err = constructListingEntry(ld, f, parentDir, d, isExt, isLog)
 		if err != nil {
 			return nil, nil, nil,
 				fmt.Errorf("error creating listing entry for %s: %w", f, err)
@@ -342,8 +365,10 @@ func processChildrenEntries(
 	return ls, missing, skip, nil
 }
 
-// Create a listing entry for f
-func makeListingEntry(
+// Complete a listing entry for a given child. Additionally add in relevant
+// rendering data fields like html body and tags for parents with log view
+// configured. Returns just a single listing corresponding to the given child.
+func constructListingEntry(
 	ld listing.Listing,
 	f string,
 	inDir string,
@@ -387,14 +412,14 @@ func makeListingEntry(
 		if len(date) > 0 {
 			ld.Date, ld.MachineDate, err = util.ResolveDate(date)
 			if err != nil {
-				return listing.Listing{}, fmt.Errorf("time parse: %w", err)
+				return listing.Listing{}, err
 			}
 		}
 		dateUpdated := d[f].Metadata.DateUpdated
 		if len(dateUpdated) > 0 {
 			ld.DateUpdated, ld.MachineDateUpdated, err = util.ResolveDate(dateUpdated)
 			if err != nil {
-				return listing.Listing{}, fmt.Errorf("time parse: %w", err)
+				return listing.Listing{}, err
 			}
 		}
 		ld.Tags = d[f].Metadata.Tags
@@ -403,15 +428,15 @@ func makeListingEntry(
 	return ld, nil
 }
 
-// Populate listing for indexes
-// Additionally make listings if there are none
-func FetchListingsCreateMissing(
+// The main callable function for extract.go to call all the relevant functions
+// to populate listing, missing indexes, and skipped files
+func ExtractAllListings(
 	files []string,
 	inDir string,
 	d map[string]entry.Entry,
 	isExt bool,
 ) ([]string, map[string][]listing.Listing, map[string]bool, error) {
-	l, missing, skip, err := extractIndexListing(inDir, d, isExt)
+	l, missing, skip, err := extractParentListings(inDir, d, isExt)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -426,16 +451,17 @@ func FetchListingsCreateMissing(
 	return files, l, skip, nil
 }
 
-// Transform map t to list of sorted tags
-func extractTags(tc map[string]int, tl map[string][]listing.Listing) []listing.Tag {
-	tags := []listing.Tag{}
+// Transform maps of tags count and tags listing to give a sorted slice of tags.
+// Used by render.RenderTags exclusively.
+func extractTags(tc map[string]int, tl map[string][]listing.Listing) []tag.Tag {
+	tags := []tag.Tag{}
 	keys := make([]string, 0, len(tc))
 	for k := range tc {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
-		tags = append(tags, listing.Tag{Name: k, Count: tc[k], Links: tl[k]})
+		tags = append(tags, tag.Tag{Name: k, Count: tc[k], Links: tl[k]})
 	}
 	return tags
 }

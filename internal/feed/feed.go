@@ -10,7 +10,7 @@ import (
 	"github.com/mstcl/pher/internal/entry"
 )
 
-func makeFeed(
+func constructFeed(
 	cfg config.Config,
 	d map[string]entry.Entry,
 ) (string, error) {
@@ -65,13 +65,13 @@ func saveFeed(outDir, atom string, isDry bool) error {
 	return nil
 }
 
-func FetchFeed(
+func RenderFeed(
 	cfg config.Config,
 	d map[string]entry.Entry,
 	outDir string,
 	isDry bool,
 ) error {
-	atom, err := makeFeed(cfg, d)
+	atom, err := constructFeed(cfg, d)
 	if err != nil {
 		return fmt.Errorf("make atom feed: %w", err)
 	}

@@ -11,6 +11,7 @@ import (
 	"github.com/mstcl/pher/internal/entry"
 	"github.com/mstcl/pher/internal/listing"
 	"github.com/mstcl/pher/internal/parse"
+	"github.com/mstcl/pher/internal/tag"
 	"github.com/mstcl/pher/internal/util"
 )
 
@@ -41,7 +42,7 @@ type RenderData struct {
 	MachineDate        string
 	MachineDateUpdated string
 	Listing            []listing.Listing
-	TagsListing        []listing.Tag
+	TagsListing        []tag.Tag
 	Ext                string
 }
 
@@ -82,14 +83,14 @@ func ConstructData(
 	if len(md.Date) > 0 {
 		d.Date, d.MachineDate, err = util.ResolveDate(md.Date)
 		if err != nil {
-			return RenderData{}, fmt.Errorf("time parse: %w", err)
+			return RenderData{}, err
 		}
 	}
 
 	if len(md.DateUpdated) > 0 {
 		d.DateUpdated, d.MachineDateUpdated, err = util.ResolveDate(md.DateUpdated)
 		if err != nil {
-			return RenderData{}, fmt.Errorf("time parse: %w", err)
+			return RenderData{}, err
 		}
 	}
 
@@ -112,13 +113,13 @@ func Render(o string, t *template.Template, rd RenderData, isDry bool) error {
 
 	// Ensure output directory exists
 	if err := os.MkdirAll(util.GetFilePath(o), os.ModePerm); err != nil {
-		return fmt.Errorf("mkdir: %w", err)
+		return fmt.Errorf("error mkdir: %w", err)
 	}
 
 	// Save output html to disk
 	if !isDry {
 		if err := os.WriteFile(o, w.Bytes(), 0644); err != nil {
-			return fmt.Errorf("writing article: %w", err)
+			return fmt.Errorf("error writing entry to disk: %w", err)
 		}
 	}
 	return nil
@@ -134,13 +135,13 @@ func RenderTags(o string, t *template.Template, rd RenderData, isDry bool) error
 
 	// Ensure output directory exists
 	if err := os.MkdirAll(util.GetFilePath(o), os.ModePerm); err != nil {
-		return fmt.Errorf("mkdir: %w", err)
+		return fmt.Errorf("error mkdir: %w", err)
 	}
 
 	// Save output html to disk
 	if !isDry {
 		if err := os.WriteFile(o, w.Bytes(), 0644); err != nil {
-			return fmt.Errorf("writing article: %w", err)
+			return fmt.Errorf("error writing entry to disk: %w", err)
 		}
 	}
 	return nil
@@ -150,7 +151,7 @@ func RenderTags(o string, t *template.Template, rd RenderData, isDry bool) error
 func RenderAll(
 	d map[string]entry.Entry,
 	l map[string][]listing.Listing,
-	t []listing.Tag,
+	t []tag.Tag,
 	inDir string,
 	outDir string,
 	tpl *template.Template,
@@ -184,7 +185,7 @@ func RenderAll(
 			cfg.IsExt,
 		)
 		if err != nil {
-			return fmt.Errorf("construct render data: %w", err)
+			return err
 		}
 
 		// Add tags only to root index
@@ -204,7 +205,7 @@ func RenderAll(
 		TagsListing: t,
 	}
 	if err := RenderTags(outDir+"/tags.html", tpl, td, isDry); err != nil {
-		return fmt.Errorf("render html: %w", err)
+		return err
 	}
 	return nil
 }

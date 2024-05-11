@@ -2,7 +2,7 @@ package listing
 
 import "html/template"
 
-// A listing
+// A listing (widely used: e.g. entry archive, links, etc.)
 //
 // * Href: target link
 //
@@ -24,13 +24,4 @@ type Listing struct {
 	MachineDate        string
 	MachineDateUpdated string
 	Tags               []string
-}
-
-// A tag
-//
-// * Count: number of references
-type Tag struct {
-	Name  string
-	Count int
-	Links []Listing
 }

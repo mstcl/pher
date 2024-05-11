@@ -52,28 +52,28 @@ func Parse() {
 	// Get absolute paths
 	inDir, err = filepath.Abs(inDir)
 	if err != nil {
-		log.Fatal(fmt.Errorf("getting absolute path: %w", err))
+		log.Fatal(fmt.Errorf("error getting absolute path: %w", err))
 	}
 	outDir, err = filepath.Abs(outDir)
 	if err != nil {
-		log.Fatal(fmt.Errorf("getting absolute path: %w", err))
+		log.Fatal(fmt.Errorf("error getting absolute path: %w", err))
 	}
 	cfgFile, err = filepath.Abs(cfgFile)
 	if err != nil {
-		log.Fatal(fmt.Errorf("getting absolute path: %w", err))
+		log.Fatal(fmt.Errorf("error getting absolute path: %w", err))
 	}
 	if err != nil {
-		log.Fatal(fmt.Errorf("get absolute paths: %w", err))
+		log.Fatal(fmt.Errorf("error get absolute paths: %w", err))
 	}
 
 	// Check paths
 	if fExist, err := util.IsFileExist(inDir); err != nil {
-		log.Fatal(fmt.Errorf("stat paths: %w", err))
+		log.Fatal(fmt.Errorf("error when stat file or directory %s: %w", inDir, err))
 	} else if !fExist {
 		log.Fatal(fmt.Errorf("no such file or directory: %s", cfgFile))
 	}
 	if fExist, err := util.IsFileExist(cfgFile); err != nil {
-		log.Fatal(fmt.Errorf("stat paths: %w", err))
+		log.Fatal(fmt.Errorf("error when stat file or directory %s: %w", cfgFile, err))
 	} else if !fExist {
 		log.Fatal(fmt.Errorf("no such file or directory: %s", cfgFile))
 	}
@@ -84,7 +84,7 @@ func Parse() {
 	// Handle configuration
 	cfg, err := config.Read(cfgFile)
 	if err != nil {
-		log.Fatal(fmt.Errorf("read config: %w", err))
+		log.Fatal(err)
 	}
 
 	// Clean output directory
@@ -98,36 +98,6 @@ func Parse() {
 		}
 	}
 
-	// Grab files and reorder so indexes are processed last
-	files, err := zglob.Glob(inDir + "/**/*.md")
-	if err != nil {
-		log.Fatal(fmt.Errorf("glob files: %w", err))
-	}
-	files = util.ReorderFiles(files)
-
-	// Populate metadata, content, indexes, tags, related links, hrefs and
-	// internal links
-	d, t, i, err := extract.Extract(
-		files,
-		inDir,
-		cfg.CodeHighlight,
-		cfg.IsExt,
-	)
-	if err != nil {
-		log.Fatal(fmt.Errorf("processing files: %w", err))
-	}
-
-	// Get listings
-	files, l, skip, err := extract.FetchListingsCreateMissing(files, inDir, d, cfg.IsExt)
-	if err != nil {
-		log.Fatal(fmt.Errorf("extracting listings for files: %w", err))
-	}
-
-	// Copy asset dirs/files over to outDir
-	if err = util.CopyExtraFiles(inDir, outDir, i); err != nil {
-		log.Fatal(fmt.Errorf("mkdir: %w", err))
-	}
-
 	// Fetch templates
 	tplDir := "web/template"
 	tpl := template.Must(template.ParseFS(Templates, filepath.Join(tplDir, "*")))
@@ -135,14 +105,44 @@ func Parse() {
 		log.Fatal(fmt.Errorf("template directory: %w", err))
 	}
 
-	// Render
-	if err = render.RenderAll(d, l, t, inDir, outDir, tpl,
-		cfg, files, isDry, skip); err != nil {
-		log.Fatal(fmt.Errorf("render files: %w", err))
+	// Grab files and reorder so indexes are processed last
+	files, err := zglob.Glob(inDir + "/**/*.md")
+	if err != nil {
+		log.Fatal(fmt.Errorf("glob files: %w", err))
+	}
+	files = util.ReorderFiles(files)
+
+	// Populate (1) entry data, (2) tags data, and (3) internal links.
+	d, t, i, err := extract.ExtractEntry(
+		files,
+		inDir,
+		cfg.CodeHighlight,
+		cfg.IsExt,
+	)
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	// Get atom feeds
-	if err = feed.FetchFeed(*cfg, d, outDir, isDry); err != nil {
+	// Get (4) listings, needs (1) entry data
+	files, l, skip, err := extract.ExtractAllListings(files, inDir, d, cfg.IsExt)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Copy asset dirs/files over to outDir.
+	// (3) internal links are used here.
+	if err = util.CopyExtraFiles(inDir, outDir, i); err != nil {
+		log.Fatal(err)
+	}
+
+	// Render with (1) entry data, (2) tags data, and (4) listings
+	if err = render.RenderAll(d, l, t, inDir, outDir, tpl,
+		cfg, files, isDry, skip); err != nil {
+		log.Fatal(err)
+	}
+
+	// Construct and render atom feeds, need (1) entry data.
+	if err = feed.RenderFeed(*cfg, d, outDir, isDry); err != nil {
 		log.Fatal(err)
 	}
 }

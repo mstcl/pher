@@ -7,14 +7,12 @@ import (
 
 	"github.com/gorilla/feeds"
 	"github.com/mstcl/pher/internal/config"
-	"github.com/mstcl/pher/internal/parse"
+	"github.com/mstcl/pher/internal/entry"
 )
 
 func makeFeed(
 	cfg config.Config,
-	m map[string]parse.Metadata,
-	c map[string][]byte,
-	h map[string]string,
+	d map[string]entry.Entry,
 ) (string, error) {
 	now := time.Now()
 	author := &feeds.Author{Name: cfg.AuthorName, Email: cfg.AuthorEmail}
@@ -28,21 +26,22 @@ func makeFeed(
 
 	feed.Items = []*feeds.Item{}
 
-	for k, v := range m {
-		if len(v.Date) == 0 {
+	for _, v := range d {
+		md := v.Metadata
+		if len(md.Date) == 0 {
 			continue
 		}
-		t, err := time.Parse("2006-01-02", v.Date)
+		t, err := time.Parse("2006-01-02", md.Date)
 		if err != nil {
 			return "", fmt.Errorf("parse time: %w", err)
 		}
 		entry := &feeds.Item{
-			Title:       v.Title,
-			Link:        &feeds.Link{Href: cfg.Url + h[k]},
-			Description: v.Description,
+			Title:       md.Title,
+			Link:        &feeds.Link{Href: cfg.Url + v.Href},
+			Description: md.Description,
 			Author:      author,
 			Created:     t,
-			Content:     string(c[k]),
+			Content:     string(v.Body),
 		}
 		feed.Items = append(feed.Items, entry)
 	}
@@ -68,13 +67,11 @@ func saveFeed(outDir, atom string, isDry bool) error {
 
 func FetchFeed(
 	cfg config.Config,
-	m map[string]parse.Metadata,
-	c map[string][]byte,
-	h map[string]string,
+	d map[string]entry.Entry,
 	outDir string,
 	isDry bool,
 ) error {
-	atom, err := makeFeed(cfg, m, c, h)
+	atom, err := makeFeed(cfg, d)
 	if err != nil {
 		return fmt.Errorf("make atom feed: %w", err)
 	}

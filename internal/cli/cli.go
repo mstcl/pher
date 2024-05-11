@@ -107,7 +107,7 @@ func Parse() {
 
 	// Populate metadata, content, indexes, tags, related links, hrefs and
 	// internal links
-	m, c, b, t, rl, h, i, err := extract.Extract(
+	d, t, i, err := extract.Extract(
 		files,
 		inDir,
 		cfg.CodeHighlight,
@@ -118,7 +118,7 @@ func Parse() {
 	}
 
 	// Get listings
-	files, l, skip, err := extract.FetchListingsCreateMissing(files, inDir, m, c, cfg.IsExt)
+	files, l, skip, err := extract.FetchListingsCreateMissing(files, inDir, d, cfg.IsExt)
 	if err != nil {
 		log.Fatal(fmt.Errorf("extracting listings for files: %w", err))
 	}
@@ -136,13 +136,13 @@ func Parse() {
 	}
 
 	// Render
-	if err = render.RenderAll(m, c, b, l, t, rl, inDir,
-		outDir, tpl, cfg, files, isDry, skip); err != nil {
+	if err = render.RenderAll(d, l, t, inDir, outDir, tpl,
+		cfg, files, isDry, skip); err != nil {
 		log.Fatal(fmt.Errorf("render files: %w", err))
 	}
 
 	// Get atom feeds
-	if err = feed.FetchFeed(*cfg, m, c, h, outDir, isDry); err != nil {
+	if err = feed.FetchFeed(*cfg, d, outDir, isDry); err != nil {
 		log.Fatal(err)
 	}
 }

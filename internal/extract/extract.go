@@ -8,6 +8,7 @@ import (
 	"sort"
 
 	"github.com/mattn/go-zglob"
+	"github.com/mstcl/pher/internal/entry"
 	"github.com/mstcl/pher/internal/listing"
 	"github.com/mstcl/pher/internal/parse"
 	"github.com/mstcl/pher/internal/util"
@@ -15,52 +16,41 @@ import (
 
 // Process files to build content c, metadata m, links l.
 func Extract(files []string, inDir string, isHighlight bool, isExt bool) (
-	map[string]parse.Metadata,
-	map[string][]byte,
-	map[string][]listing.Listing,
+	map[string]entry.Entry,
 	[]listing.Tag,
-	map[string][]listing.Listing,
-	map[string]string,
 	map[string]bool,
 	error,
 ) {
-	// Metadata, content, backlinks and tags storing
-	m := make(map[string]parse.Metadata)
-	c := make(map[string][]byte)
-	l := make(map[string][]listing.Listing)
+	// These are our data:
+	// d: entry.Entry (key: entry filename)
+	// tc: tags count (key: tag name)
+	// tl: tags listing - files with this tag (key: tag name)
+	// i: linked internal assets (key: asset filename)
+	d := make(map[string]entry.Entry)
 	tc := make(map[string]int)
 	tl := make(map[string][]listing.Listing)
-	rl := make(map[string][]listing.Listing)
-	h := make(map[string]string)
 	i := make(map[string]bool)
 
 	for _, f := range files {
+		entry := d[f]
 		// Read input file
 		b, err := os.ReadFile(f)
 		if err != nil {
 			return nil,
 				nil,
 				nil,
-				nil,
-				nil,
-				nil,
-				nil,
 				fmt.Errorf("error reading file %s: %w", f, err)
 		}
 
-		// Append to metadata
+		// Extract and save metadata
 		md, err := parse.ParseMetadata(b)
 		if err != nil {
 			return nil,
 				nil,
 				nil,
-				nil,
-				nil,
-				nil,
-				nil,
 				err
 		}
-		m[f] = md
+		entry.Metadata = md
 
 		// Don't proceed if file is draft
 		if md.Draft {
@@ -76,27 +66,24 @@ func Extract(files []string, inDir string, isHighlight bool, isExt bool) (
 		}
 		title := util.ResolveTitle(md.Title, base)
 
-		// Append to hrefs
+		// Save href
+		entry.Href = href
 
-		h[f] = href
-
-		// Parse for content
+		// Extract and parse html body
 		html, err := parse.ParseSource(b, md.TOC, isHighlight)
 		if err != nil {
 			return nil,
 				nil,
 				nil,
-				nil,
-				nil,
-				nil,
-				nil,
 				err
 		}
 
-		// Append to content
-		c[f] = html
+		// Save html body
+		entry.Body = html
 
-		// Append to tags
+		// Grab tags count (tc) and tags listing (tl)
+		// We process the final tags later - this is
+		// for the tags page
 		for _, v := range md.Tags {
 			tc[v] += 1
 			tl[v] = append(tl[v], listing.Listing{
@@ -107,14 +94,10 @@ func Extract(files []string, inDir string, isHighlight bool, isExt bool) (
 			})
 		}
 
-		// Extract wiki blinks
+		// Extract wiki backlinks (blinks) and image links (ilinks)
 		blinks, ilinks, err := parse.ParseInternalLinks(b)
 		if err != nil {
 			return nil,
-				nil,
-				nil,
-				nil,
-				nil,
 				nil,
 				nil,
 				err
@@ -128,16 +111,12 @@ func Extract(files []string, inDir string, isHighlight bool, isExt bool) (
 				return nil,
 					nil,
 					nil,
-					nil,
-					nil,
-					nil,
-					nil,
 					fmt.Errorf("error resolving path: %w", err)
 			}
 			i[ref] = true
 		}
 
-		// Append to backlinks l
+		// Construct backlinks
 		// Backlinks can be relative e.g. [[../blah]]
 		for _, v := range blinks {
 			// Reconstruct wikilink into full input path
@@ -152,14 +131,12 @@ func Extract(files []string, inDir string, isHighlight bool, isExt bool) (
 				return nil,
 					nil,
 					nil,
-					nil,
-					nil,
-					nil,
-					nil,
 					fmt.Errorf("resolving path: %w", err)
 			}
-			l[ref] = append(
-				l[ref],
+			// Save backlinks
+			linkedEntry := d[ref]
+			linkedEntry.Backlinks = append(
+				linkedEntry.Backlinks,
 				listing.Listing{
 					Href:        href,
 					Title:       title,
@@ -167,20 +144,28 @@ func Extract(files []string, inDir string, isHighlight bool, isExt bool) (
 					IsDir:       false,
 				},
 			)
+			d[ref] = linkedEntry
 		}
+		d[f] = entry
 	}
 
-	// Get related links
+	// Construct and save related links
+	// Entries that share tags are related
+	// Hence dependent on tags listing (tl)
 	for _, f := range files {
-		if parse.IsDraft(m[f]) || len(m[f].Tags) == 0 {
+		entry := d[f]
+		if parse.IsDraft(entry.Metadata) || len(entry.Metadata.Tags) == 0 {
 			continue
 		}
-		rl[f] = getUniqueRelLinks(f, inDir, m[f], tl)
+		entry.Relatedlinks = getUniqueRelLinks(f, inDir, entry.Metadata, tl)
+		d[f] = entry
 	}
 
-	// Transform tags to right struct
+	// Transform tags to right format
+	// a list of listing.Tag
 	t := extractTags(tc, tl)
-	return m, c, l, t, rl, h, i, nil
+
+	return d, t, i, nil
 }
 
 // For file f, find related links based on tags (populated in tl)
@@ -213,8 +198,7 @@ func getUniqueRelLinks(
 // `map[string]bool` where key is the index path that is missing.
 func extractIndexListing(
 	inDir string,
-	m map[string]parse.Metadata,
-	c map[string][]byte,
+	d map[string]entry.Entry,
 	isExt bool,
 ) (
 	map[string][]listing.Listing,
@@ -253,7 +237,7 @@ func extractIndexListing(
 				fmt.Errorf("error globbing files %s/*: %w", dir, err)
 		}
 		ls, missing, skip, err = processChildrenEntries(
-			inDir, dir, isExt, m, c, children, missing, ls, skip,
+			inDir, dir, isExt, d, children, missing, ls, skip,
 		)
 		if err != nil {
 			return nil, nil, nil, err
@@ -267,8 +251,7 @@ func processChildrenEntries(
 	inDir string,
 	parentDir string,
 	isExt bool,
-	m map[string]parse.Metadata,
-	c map[string][]byte,
+	d map[string]entry.Entry,
 	files []string,
 	missing map[string]bool,
 	ls map[string][]listing.Listing,
@@ -277,7 +260,7 @@ func processChildrenEntries(
 	// Whether to render children
 	// Use source file as key for consistency
 	dirI := parentDir + "/" + "index.md"
-	isLog := m[dirI].Layout == "log"
+	isLog := d[dirI].Metadata.Layout == "log"
 	for _, f := range files {
 		// Stat files/directories
 		fst, err := os.Stat(f)
@@ -299,7 +282,7 @@ func processChildrenEntries(
 
 		// Skip index files, unlisted ones, and ones that utilize
 		// log listing
-		if util.GetFileBase(f) == "index" || m[f].Unlisted {
+		if util.GetFileBase(f) == "index" || d[f].Metadata.Unlisted {
 			continue
 		}
 
@@ -338,8 +321,8 @@ func processChildrenEntries(
 		// Grab href target, different for file vs. dir
 		ld.IsDir = IsDir
 
-		// Create the entry
-		ld, err = makeListingEntry(ld, f, parentDir, m, c, isExt, isLog)
+		// Construct the listing entry
+		ld, err = makeListingEntry(ld, f, parentDir, d, isExt, isLog)
 		if err != nil {
 			return nil, nil, nil,
 				fmt.Errorf("error creating listing entry for %s: %w", f, err)
@@ -350,7 +333,7 @@ func processChildrenEntries(
 		}
 
 		// Append to ls
-		if m[f].Pinned {
+		if d[f].Metadata.Pinned {
 			ls[dirI] = append([]listing.Listing{ld}, ls[dirI]...)
 			continue
 		}
@@ -364,8 +347,7 @@ func makeListingEntry(
 	ld listing.Listing,
 	f string,
 	inDir string,
-	m map[string]parse.Metadata,
-	c map[string][]byte,
+	d map[string]entry.Entry,
 	isExt bool,
 	isLog bool,
 ) (listing.Listing, error) {
@@ -390,29 +372,32 @@ func makeListingEntry(
 	// Grab titles and description.
 	// If metadata has title -> use that.
 	// If not -> use filename only if entry is not a directory
-	if len(m[f].Title) > 0 {
-		ld.Title = m[f].Title
+	title := d[f].Metadata.Title
+	if len(title) > 0 {
+		ld.Title = title
 	} else if !ld.IsDir {
 		ld.Title = util.GetFileBase(f)
 	}
-	ld.Description = m[f].Description
+	ld.Description = d[f].Metadata.Description
 
 	var err error
 	if isLog {
-		ld.Body = template.HTML(c[f])
-		if len(m[f].Date) > 0 {
-			ld.Date, ld.MachineDate, err = util.ResolveDate(m[f].Date)
+		ld.Body = template.HTML(d[f].Body)
+		date := d[f].Metadata.Date
+		if len(date) > 0 {
+			ld.Date, ld.MachineDate, err = util.ResolveDate(date)
 			if err != nil {
 				return listing.Listing{}, fmt.Errorf("time parse: %w", err)
 			}
 		}
-		if len(m[f].DateUpdated) > 0 {
-			ld.DateUpdated, ld.MachineDateUpdated, err = util.ResolveDate(m[f].DateUpdated)
+		dateUpdated := d[f].Metadata.DateUpdated
+		if len(dateUpdated) > 0 {
+			ld.DateUpdated, ld.MachineDateUpdated, err = util.ResolveDate(dateUpdated)
 			if err != nil {
 				return listing.Listing{}, fmt.Errorf("time parse: %w", err)
 			}
 		}
-		ld.Tags = m[f].Tags
+		ld.Tags = d[f].Metadata.Tags
 	}
 
 	return ld, nil
@@ -420,16 +405,23 @@ func makeListingEntry(
 
 // Populate listing for indexes
 // Additionally make listings if there are none
-func FetchListingsCreateMissing(files []string, inDir string, m map[string]parse.Metadata, c map[string][]byte, isExt bool) ([]string, map[string][]listing.Listing, map[string]bool, error) {
-	l, missing, skip, err := extractIndexListing(inDir, m, c, isExt)
+func FetchListingsCreateMissing(
+	files []string,
+	inDir string,
+	d map[string]entry.Entry,
+	isExt bool,
+) ([]string, map[string][]listing.Listing, map[string]bool, error) {
+	l, missing, skip, err := extractIndexListing(inDir, d, isExt)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	for k := range missing {
-		files = append(files, k)
+	for f := range missing {
+		entry := d[f]
+		files = append(files, f)
 		md := parse.DefaultMetadata()
-		md.Title = util.GetFilePath(util.GetRelativeFilePath(k, inDir))
-		m[k] = md
+		md.Title = util.GetFilePath(util.GetRelativeFilePath(f, inDir))
+		entry.Metadata = md
+		d[f] = entry
 	}
 	return files, l, skip, nil
 }

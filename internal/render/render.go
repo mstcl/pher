@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/mstcl/pher/internal/config"
+	"github.com/mstcl/pher/internal/entry"
 	"github.com/mstcl/pher/internal/listing"
 	"github.com/mstcl/pher/internal/parse"
 	"github.com/mstcl/pher/internal/util"
@@ -47,17 +48,14 @@ type RenderData struct {
 // Recombine all the data from different places before rendering.
 func ConstructData(
 	cfg config.Config,
-	html []byte,
-	md parse.Metadata,
-	backlinks []listing.Listing,
-	indexes []listing.Listing,
-	related []listing.Listing,
+	entryData entry.Entry,
+	listings []listing.Listing,
 	cr []string,
 	cl []string,
 	filename string,
 	isExt bool,
 ) (RenderData, error) {
-
+	md := entryData.Metadata
 	d := RenderData{}
 	d.Title = util.ResolveTitle(md.Title, filename)
 	d.Description = md.Description
@@ -66,13 +64,13 @@ func ConstructData(
 	d.ShowHeader = md.ShowHeader
 	d.Layout = md.Layout
 	d.RootCrumb = cfg.RootCrumb
-	d.Body = template.HTML(html)
+	d.Body = template.HTML(entryData.Body)
 	d.Head = template.HTML(cfg.Head)
 	d.Footer = cfg.Footer
-	d.Backlinks = backlinks
-	d.Relatedlinks = related
+	d.Backlinks = entryData.Backlinks
+	d.Relatedlinks = entryData.Relatedlinks
 	d.Filename = filename
-	d.Listing = indexes
+	d.Listing = listings
 
 	// Populate crumbs
 	for i, v := range cr {
@@ -105,10 +103,10 @@ func ConstructData(
 }
 
 // Template html with data d.
-func Render(o string, t *template.Template, d RenderData, isDry bool) error {
+func Render(o string, t *template.Template, rd RenderData, isDry bool) error {
 	// Template the current file
 	w := new(bytes.Buffer)
-	if err := t.ExecuteTemplate(w, "index", d); err != nil {
+	if err := t.ExecuteTemplate(w, "index", rd); err != nil {
 		return err
 	}
 
@@ -127,10 +125,10 @@ func Render(o string, t *template.Template, d RenderData, isDry bool) error {
 }
 
 // Template tags page
-func RenderTags(o string, t *template.Template, d RenderData, isDry bool) error {
+func RenderTags(o string, t *template.Template, rd RenderData, isDry bool) error {
 	// Template the current file
 	w := new(bytes.Buffer)
-	if err := t.ExecuteTemplate(w, "tags", d); err != nil {
+	if err := t.ExecuteTemplate(w, "tags", rd); err != nil {
 		return err
 	}
 
@@ -150,12 +148,9 @@ func RenderTags(o string, t *template.Template, d RenderData, isDry bool) error 
 
 // Render all files, including tags page, to html.
 func RenderAll(
-	m map[string]parse.Metadata,
-	c map[string][]byte,
-	b map[string][]listing.Listing,
+	d map[string]entry.Entry,
 	l map[string][]listing.Listing,
 	t []listing.Tag,
-	rl map[string][]listing.Listing,
 	inDir string,
 	outDir string,
 	tpl *template.Template,
@@ -167,7 +162,7 @@ func RenderAll(
 	// depth := GetDepth(inDir)
 	for _, f := range files {
 		// Don't render drafts or skipped files
-		if parse.IsDraft(m[f]) || skip[f] {
+		if parse.IsDraft(d[f].Metadata) || skip[f] {
 			continue
 		}
 
@@ -177,14 +172,12 @@ func RenderAll(
 		// Get output path
 		o := util.ResolveOutPath(f, inDir, outDir, ".html")
 
-		// Construct data before rendering
-		d, err := ConstructData(
+		// Construct rendering data (rd) from config, entry data, listing, nav
+		// crumbs, etc.
+		rd, err := ConstructData(
 			*cfg,
-			c[f],
-			m[f],
-			b[f],
+			d[f],
 			l[f],
-			rl[f],
 			cr,
 			cl,
 			util.GetFileBase(f),
@@ -196,21 +189,21 @@ func RenderAll(
 
 		// Add tags only to root index
 		if f == inDir+"/index.md" {
-			d.TagsListing = t
+			rd.TagsListing = t
 		}
 
 		// Render
-		if err = Render(o, tpl, d, isDry); err != nil {
+		if err = Render(o, tpl, rd, isDry); err != nil {
 			return err
 		}
 	}
-	// Render tags page
-	d := RenderData{
+	// Construct tags data (td) to render tags page
+	td := RenderData{
 		RootCrumb:   cfg.RootCrumb,
 		Footer:      cfg.Footer,
 		TagsListing: t,
 	}
-	if err := RenderTags(outDir+"/tags.html", tpl, d, isDry); err != nil {
+	if err := RenderTags(outDir+"/tags.html", tpl, td, isDry); err != nil {
 		return fmt.Errorf("render html: %w", err)
 	}
 	return nil

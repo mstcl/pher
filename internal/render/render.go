@@ -23,27 +23,24 @@ import (
 //
 // * Filename: has no extension. Used for navigation crumb.
 type RenderData struct {
-	Title              string
-	Description        string
-	Tags               []string
-	TOC                bool
-	ShowHeader         bool
-	Layout             string
-	RootCrumb          string
-	Body               template.HTML
-	Head               template.HTML
-	Footer             []config.FooterLink
-	Backlinks          []listing.Listing
-	Relatedlinks       []listing.Listing
-	Crumbs             []listing.Listing
-	Filename           string
-	Date               string
-	DateUpdated        string
-	MachineDate        string
-	MachineDateUpdated string
-	Listing            []listing.Listing
-	TagsListing        []tag.Tag
-	Ext                string
+	Body                                     template.HTML
+	Head                                     template.HTML
+	Title                                    string
+	Description                              string
+	Layout                                   string
+	RootCrumb                                string
+	Filename                                 string
+	Date                                     string
+	DateUpdated                              string
+	MachineDate                              string
+	MachineDateUpdated                       string
+	Ext                                      string
+	Tags                                     []string
+	TagsListing                              []tag.Tag
+	Footer                                   []config.FooterLink
+	Backlinks, Relatedlinks, Crumbs, Listing []listing.Listing
+	TOC                                      bool
+	ShowHeader                               bool
 }
 
 // Recombine all the data from different places before rendering.
@@ -118,7 +115,7 @@ func Render(o string, t *template.Template, rd RenderData, isDry bool) error {
 
 	// Save output html to disk
 	if !isDry {
-		if err := os.WriteFile(o, w.Bytes(), 0644); err != nil {
+		if err := os.WriteFile(o, w.Bytes(), 0o644); err != nil {
 			return fmt.Errorf("error writing entry to disk: %w", err)
 		}
 	}
@@ -140,7 +137,7 @@ func RenderTags(o string, t *template.Template, rd RenderData, isDry bool) error
 
 	// Save output html to disk
 	if !isDry {
-		if err := os.WriteFile(o, w.Bytes(), 0644); err != nil {
+		if err := os.WriteFile(o, w.Bytes(), 0o644); err != nil {
 			return fmt.Errorf("error writing entry to disk: %w", err)
 		}
 	}

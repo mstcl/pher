@@ -14,14 +14,14 @@ import "html/template"
 //
 // The rest are for Log View, similar to render.RenderData
 type Listing struct {
+	Body               template.HTML
 	Href               string
 	Title              string
 	Description        string
-	IsDir              bool
-	Body               template.HTML
 	Date               string
 	DateUpdated        string
 	MachineDate        string
 	MachineDateUpdated string
 	Tags               []string
+	IsDir              bool
 }

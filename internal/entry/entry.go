@@ -9,9 +9,9 @@ import (
 // (entries that mention this entry) the related links (other entries that
 // share tags), and the href.
 type Entry struct {
-	Metadata           parse.Metadata
-	Body               []byte
-	Backlinks          []listing.Listing
-	Relatedlinks       []listing.Listing
-	Href               string
+	Href         string
+	Backlinks    []listing.Listing
+	Relatedlinks []listing.Listing
+	Body         []byte
+	Metadata     parse.Metadata
 }

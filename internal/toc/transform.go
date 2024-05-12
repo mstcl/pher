@@ -23,7 +23,7 @@ import (
 // NOTE: Unless you've supplied your own parser.IDs implementation, you'll
 // need to enable the WithAutoHeadingID option on the parser to generate IDs
 // and links for headings.
-type Transformer struct {}
+type Transformer struct{}
 
 var _ parser.ASTTransformer = (*Transformer)(nil) // interface compliance
 

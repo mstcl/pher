@@ -11,7 +11,6 @@ import (
 // heading or a heading level with zero or more children.
 // The returned TOC will be empty if there are no headings in the document.
 func Inspect(n ast.Node, src []byte) (*TOC, error) {
-
 	// Appends an empty subitem to the given node
 	// and returns a reference to it.
 	appendChild := func(n *Item) *Item {

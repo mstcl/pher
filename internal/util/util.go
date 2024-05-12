@@ -170,7 +170,7 @@ func CopyExtraFiles(inDir string, outDir string, files map[string]bool) error {
 		if err != nil {
 			return fmt.Errorf("read file: %w", err)
 		}
-		if err = os.WriteFile(out, b, 0644); err != nil {
+		if err = os.WriteFile(out, b, 0o644); err != nil {
 			return fmt.Errorf("write file: %w", err)
 		}
 	}

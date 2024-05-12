@@ -26,18 +26,19 @@ var YAML = Format{
 
 // Format defines a front matter format recognized by this package.
 type Format struct {
-	// Name is a human-readable name for the format.
-	//
-	// It may be used in error messages.
-	Name string
-
 	// Delim specifies the delimiter that marks front matter
 	// in this format.
 	//
 	// There must be at least three of these in a row
 	// for the front matter to be recognized.
-	Delim byte
 
 	// Unmarshal unmarshals the front matter data into the provided value.
 	Unmarshal func([]byte, any) error
+
+	// Name is a human-readable name for the format.
+	//
+	// It may be used in error messages.
+	Name string
+
+	Delim byte
 }

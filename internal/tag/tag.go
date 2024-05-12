@@ -12,6 +12,6 @@ import "github.com/mstcl/pher/internal/listing"
 // * Links: entries (represtend as listing.Listing) for a given tag
 type Tag struct {
 	Name  string
-	Count int
 	Links []listing.Listing
+	Count int
 }

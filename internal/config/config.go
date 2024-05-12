@@ -2,8 +2,9 @@ package config
 
 import (
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"os"
+
+	"gopkg.in/yaml.v3"
 )
 
 type Config struct {
@@ -13,9 +14,9 @@ type Config struct {
 	AuthorName    string       `yaml:"authorName"`
 	AuthorEmail   string       `yaml:"authorEmail"`
 	RootCrumb     string       `yaml:"rootCrumb"`
-	CodeHighlight bool         `yaml:"codeHighlight"`
-	Footer        []FooterLink `yaml:"footer"`
 	Head          string       `yaml:"head"`
+	Footer        []FooterLink `yaml:"footer"`
+	CodeHighlight bool         `yaml:"codeHighlight"`
 	IsExt         bool         `yaml:"keepExtension"`
 }
 

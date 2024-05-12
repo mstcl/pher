@@ -11,15 +11,15 @@ import (
 
 // Parser parses front matter from a Markdown document.
 type Parser struct {
+	formatByOpen map[byte]Format // open delim => format
 	// Formats specifies the front matter formats
 	// supported by the parser.
 	//
 	// If Formats is empty, DefaultFormats is used.
 	Formats []Format
 
-	once         sync.Once
-	triggers     []byte          // list of open delimiters
-	formatByOpen map[byte]Format // open delim => format
+	triggers []byte // list of open delimiters
+	once     sync.Once
 }
 
 var _ parser.BlockParser = (*Parser)(nil)

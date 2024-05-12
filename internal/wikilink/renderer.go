@@ -33,12 +33,11 @@ type Renderer struct {
 	// Defaults to DefaultResolver if unspecified.
 	Resolver Resolver
 
-	once sync.Once // guards init
-
 	// hasDest records whether a node had a destination when we resolved
 	// it. This is needed to decide whether a closing </a> must be added
 	// when exiting a Node render.
-	hasDest sync.Map // *Node => struct{}
+	hasDest sync.Map  // *Node => struct{}
+	once    sync.Once // guards init
 }
 
 func (r *Renderer) init() {

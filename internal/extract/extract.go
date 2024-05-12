@@ -224,7 +224,8 @@ func extractParentListings(
 	map[string][]listing.Listing,
 	map[string]bool,
 	map[string]bool,
-	error) {
+	error,
+) {
 	ls := make(map[string][]listing.Listing)
 	missing := make(map[string]bool)
 	skip := make(map[string]bool)

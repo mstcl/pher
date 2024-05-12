@@ -28,6 +28,16 @@ import (
 // need to enable the WithAutoHeadingID option on the parser to generate IDs
 // and links for headings.
 type Extender struct {
+	// ListID is the id for the list of TOC items rendered in the HTML.
+	//
+	// See the documentation for Transformer.ListID for more information.
+	ListID string
+
+	// TitleID is the id for the Title heading rendered in the HTML.
+	//
+	// See the documentation for Transformer.TitleID for more information.
+	TitleID string
+
 	// Title is the title of the table of contents section.
 	// Defaults to "Table of Contents" if unspecified.
 	Title string
@@ -49,16 +59,6 @@ type Extender struct {
 	//
 	// Defaults to 0 (no limit) if unspecified.
 	MaxDepth int
-
-	// ListID is the id for the list of TOC items rendered in the HTML.
-	//
-	// See the documentation for Transformer.ListID for more information.
-	ListID string
-
-	// TitleID is the id for the Title heading rendered in the HTML.
-	//
-	// See the documentation for Transformer.TitleID for more information.
-	TitleID string
 
 	// Compact controls whether empty items should be removed
 	// from the table of contents.

@@ -37,15 +37,15 @@ import (
 type Metadata struct {
 	Title       string   `yaml:"title"`
 	Description string   `yaml:"description"`
-	Tags        []string `yaml:"tags"`
 	Date        string   `yaml:"date"`
 	DateUpdated string   `yaml:"dateUpdated"`
+	Layout      string   `yaml:"layout"`
+	Tags        []string `yaml:"tags"`
 	Pinned      bool     `yaml:"pinned"`
 	Unlisted    bool     `yaml:"unlisted"`
 	Draft       bool     `yaml:"draft"`
 	TOC         bool     `yaml:"toc"`
 	ShowHeader  bool     `yaml:"showHeader"`
-	Layout      string   `yaml:"layout"`
 }
 
 func DefaultMetadata() Metadata {
@@ -176,11 +176,13 @@ func ParseInternalLinks(b []byte) ([]string, []string, error) {
 		paragraphParser,
 		listItemParser,
 		listParser,
-		BlockquoteParser}...),
+		BlockquoteParser,
+	}...),
 		parser.WithInlineParsers(
 			[]util.PrioritizedValue{
 				wikilinkParser,
-				linkParser}...),
+				linkParser,
+			}...),
 		parser.WithParagraphTransformers(),
 	)
 

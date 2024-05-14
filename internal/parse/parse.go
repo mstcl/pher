@@ -79,7 +79,6 @@ func convert(b []byte, r goldmark.Markdown) ([]byte, Metadata, error) {
 	// Get context
 	ctx := parser.NewContext()
 
-	// err := r.Renderer().Render(w, b, p)
 	if err := r.Convert(b, w, parser.WithContext(ctx)); err != nil {
 		return nil,
 			Metadata{},

@@ -161,7 +161,7 @@ func CopyExtraFiles(inDir string, outDir string, files map[string]bool) error {
 
 		// Make dir to preserver structure
 		dirOut := GetFilePath(out)
-		if err := os.MkdirAll(dirOut, os.ModePerm); err != nil {
+		if err := os.MkdirAll(dirOut, 0o755); err != nil {
 			return fmt.Errorf("mkdir: %w", err)
 		}
 
@@ -207,7 +207,7 @@ func RemoveExtension(f string) string {
 
 // Ensure directory exists
 func EnsureDir(dirName string) error {
-	if err := os.Mkdir(dirName, os.ModeDir); err == nil {
+	if err := os.Mkdir(dirName, 0o755); err == nil {
 		return nil
 	} else if os.IsExist(err) {
 		// check that the existing path is a directory

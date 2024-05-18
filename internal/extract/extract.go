@@ -180,7 +180,7 @@ func (m *Meta) ExtractEntry(files []string) (
 		if e.Metadata.Draft || len(e.Metadata.Tags) == 0 {
 			continue
 		}
-		e.Relatedlinks = m.constructUniqueRelLinks(f, tl)
+		e.Relatedlinks = m.constructUniqueRelLinks(f, e.Metadata, tl)
 		d[f] = e
 	}
 
@@ -195,13 +195,14 @@ func (m *Meta) ExtractEntry(files []string) (
 // that the slice is unique and does not contain f
 func (m *Meta) constructUniqueRelLinks(
 	f string,
+	md parse.Metadata,
 	tl map[string][]listing.Listing,
 ) []listing.Listing {
 	l := []listing.Listing{}
 	u := []listing.Listing{}
 
 	// get all links under f's tags
-	for _, t := range m.M.Tags {
+	for _, t := range md.Tags {
 		l = append(l, tl[t]...)
 	}
 

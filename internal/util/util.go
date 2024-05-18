@@ -145,6 +145,9 @@ func ResolveOutPath(f string, inDir string, outDir string, newExt string) string
 // Resolve the date d from format YYYY-MM-DD
 // Returns a pretty date and a machine date
 func ResolveDate(d string) (string, string, error) {
+	if len(d) == 0 {
+		return "", "", nil
+	}
 	dt, err := time.Parse("2006-01-02", d)
 	if err != nil {
 		return "", "", fmt.Errorf("time parse: %w", err)

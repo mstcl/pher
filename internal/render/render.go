@@ -15,6 +15,20 @@ import (
 	"github.com/mstcl/pher/internal/util"
 )
 
+type Meta struct {
+	C         *config.Config
+	Templates *template.Template
+	D         map[string]entry.Entry
+	Skip      map[string]bool
+	L         map[string][]listing.Listing
+	InDir     string
+	OutDir    string
+	Files     []string
+	T         []tag.Tag
+	M         parse.Metadata
+	IsDry     bool
+}
+
 // All fields used in the html templates.
 //
 // * Title: page title (set in title tags and in document)
@@ -35,6 +49,7 @@ type RenderData struct {
 	MachineDate                              string
 	MachineDateUpdated                       string
 	Ext                                      string
+	OutFilename                              string
 	Tags                                     []string
 	TagsListing                              []tag.Tag
 	Footer                                   []config.FooterLink
@@ -43,65 +58,8 @@ type RenderData struct {
 	ShowHeader                               bool
 }
 
-// Recombine all the data from different places before rendering.
-func ConstructData(
-	cfg config.Config,
-	entryData entry.Entry,
-	listings []listing.Listing,
-	cr []string,
-	cl []string,
-	filename string,
-	isExt bool,
-) (RenderData, error) {
-	md := entryData.Metadata
-	d := RenderData{}
-	d.Title = util.ResolveTitle(md.Title, filename)
-	d.Description = md.Description
-	d.Tags = md.Tags
-	d.TOC = md.TOC
-	d.ShowHeader = md.ShowHeader
-	d.Layout = md.Layout
-	d.RootCrumb = cfg.RootCrumb
-	d.Body = template.HTML(entryData.Body)
-	d.Head = template.HTML(cfg.Head)
-	d.Footer = cfg.Footer
-	d.Backlinks = entryData.Backlinks
-	d.Relatedlinks = entryData.Relatedlinks
-	d.Filename = filename
-	d.Listing = listings
-
-	// Populate crumbs
-	for i, v := range cr {
-		d.Crumbs = append(d.Crumbs, listing.Listing{Href: cl[i], Title: v})
-	}
-
-	// Use date only if given
-	var err error
-	if len(md.Date) > 0 {
-		d.Date, d.MachineDate, err = util.ResolveDate(md.Date)
-		if err != nil {
-			return RenderData{}, err
-		}
-	}
-
-	if len(md.DateUpdated) > 0 {
-		d.DateUpdated, d.MachineDateUpdated, err = util.ResolveDate(md.DateUpdated)
-		if err != nil {
-			return RenderData{}, err
-		}
-	}
-
-	if isExt {
-		d.Ext = ".html"
-	} else {
-		d.Ext = ""
-	}
-
-	return d, nil
-}
-
 // Template html with data d.
-func Render(o string, t *template.Template, rd RenderData, isDry bool) error {
+func (rd *RenderData) Render(t *template.Template, isDry bool) error {
 	// Template the current file
 	w := new(bytes.Buffer)
 	if err := t.ExecuteTemplate(w, "index", rd); err != nil {
@@ -109,13 +67,13 @@ func Render(o string, t *template.Template, rd RenderData, isDry bool) error {
 	}
 
 	// Ensure output directory exists
-	if err := os.MkdirAll(util.GetFilePath(o), os.ModePerm); err != nil {
+	if err := os.MkdirAll(util.GetFilePath(rd.OutFilename), os.ModePerm); err != nil {
 		return fmt.Errorf("error mkdir: %w", err)
 	}
 
 	// Save output html to disk
 	if !isDry {
-		if err := os.WriteFile(o, w.Bytes(), 0o644); err != nil {
+		if err := os.WriteFile(rd.OutFilename, w.Bytes(), 0o644); err != nil {
 			return fmt.Errorf("error writing entry to disk: %w", err)
 		}
 	}
@@ -123,7 +81,7 @@ func Render(o string, t *template.Template, rd RenderData, isDry bool) error {
 }
 
 // Template tags page
-func RenderTags(o string, t *template.Template, rd RenderData, isDry bool) error {
+func (rd *RenderData) RenderTags(t *template.Template, isDry bool) error {
 	// Template the current file
 	w := new(bytes.Buffer)
 	if err := t.ExecuteTemplate(w, "tags", rd); err != nil {
@@ -131,13 +89,13 @@ func RenderTags(o string, t *template.Template, rd RenderData, isDry bool) error
 	}
 
 	// Ensure output directory exists
-	if err := os.MkdirAll(util.GetFilePath(o), os.ModePerm); err != nil {
+	if err := os.MkdirAll(util.GetFilePath(rd.OutFilename), os.ModePerm); err != nil {
 		return fmt.Errorf("error mkdir: %w", err)
 	}
 
 	// Save output html to disk
 	if !isDry {
-		if err := os.WriteFile(o, w.Bytes(), 0o644); err != nil {
+		if err := os.WriteFile(rd.OutFilename, w.Bytes(), 0o644); err != nil {
 			return fmt.Errorf("error writing entry to disk: %w", err)
 		}
 	}
@@ -145,63 +103,83 @@ func RenderTags(o string, t *template.Template, rd RenderData, isDry bool) error
 }
 
 // Render all files, including tags page, to html.
-func RenderAll(
-	d map[string]entry.Entry,
-	l map[string][]listing.Listing,
-	t []tag.Tag,
-	inDir string,
-	outDir string,
-	tpl *template.Template,
-	cfg *config.Config,
-	files []string,
-	isDry bool,
-	skip map[string]bool,
-) error {
-	// depth := GetDepth(inDir)
-	for _, f := range files {
+func (m *Meta) RenderAll() error {
+	for _, f := range m.Files {
 		// Don't render drafts or skipped files
-		if parse.IsDraft(d[f].Metadata) || skip[f] {
+		e := m.D[f]
+		if e.Metadata.Draft || m.Skip[f] {
 			continue
 		}
 
 		// Get navigation crumbs
-		cr, cl := util.GetCrumbs(f, inDir, cfg.IsExt)
+		cr, cl := util.GetCrumbs(f, m.InDir, m.C.IsExt)
+
+		// Populate crumbs
+		crumbs := []listing.Listing{}
+		for i, v := range cr {
+			crumbs = append(crumbs, listing.Listing{Href: cl[i], Title: v})
+		}
 
 		// Get output path
-		o := util.ResolveOutPath(f, inDir, outDir, ".html")
+		o := util.ResolveOutPath(f, m.InDir, m.OutDir, ".html")
 
 		// Construct rendering data (rd) from config, entry data, listing, nav
 		// crumbs, etc.
-		rd, err := ConstructData(
-			*cfg,
-			d[f],
-			l[f],
-			cr,
-			cl,
-			util.GetFileBase(f),
-			cfg.IsExt,
-		)
+		rd := RenderData{
+			OutFilename:  o,
+			Listing:      m.L[f],
+			Filename:     util.GetFileBase(f),
+			Description:  e.Metadata.Description,
+			Tags:         e.Metadata.Tags,
+			TOC:          e.Metadata.TOC,
+			ShowHeader:   e.Metadata.ShowHeader,
+			Layout:       e.Metadata.Layout,
+			Backlinks:    e.Backlinks,
+			Relatedlinks: e.Relatedlinks,
+			Body:         template.HTML(e.Body),
+			Head:         template.HTML(m.C.Head),
+			RootCrumb:    m.C.RootCrumb,
+			Footer:       m.C.Footer,
+			Crumbs:       crumbs,
+		}
+		rd.Title = util.ResolveTitle(e.Metadata.Title, rd.Filename)
+		if m.C.IsExt {
+			rd.Ext = ".html"
+		} else {
+			rd.Ext = ""
+		}
+
+		// Use date only if given
+		var err error
+		rd.Date, rd.MachineDate, err = util.ResolveDate(e.Metadata.Date)
+		if err != nil {
+			return err
+		}
+
+		// Use data updated only if given
+		rd.DateUpdated, rd.MachineDateUpdated, err = util.ResolveDate(e.Metadata.DateUpdated)
 		if err != nil {
 			return err
 		}
 
 		// Add tags only to root index
-		if f == inDir+"/index.md" {
-			rd.TagsListing = t
+		if f == m.InDir+"/index.md" {
+			rd.TagsListing = m.T
 		}
 
 		// Render
-		if err = Render(o, tpl, rd, isDry); err != nil {
+		if err = rd.Render(m.Templates, m.IsDry); err != nil {
 			return err
 		}
 	}
 	// Construct tags data (td) to render tags page
 	td := RenderData{
-		RootCrumb:   cfg.RootCrumb,
-		Footer:      cfg.Footer,
-		TagsListing: t,
+		RootCrumb:   m.C.RootCrumb,
+		Footer:      m.C.Footer,
+		TagsListing: m.T,
+		OutFilename: m.OutDir + "/tags.html",
 	}
-	if err := RenderTags(outDir+"/tags.html", tpl, td, isDry); err != nil {
+	if err := td.RenderTags(m.Templates, m.IsDry); err != nil {
 		return err
 	}
 	return nil

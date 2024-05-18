@@ -19,6 +19,12 @@ import (
 	"go.abhg.dev/goldmark/anchor"
 )
 
+type Source struct {
+	B           []byte
+	IsTOC       bool
+	IsHighlight bool
+}
+
 // Allowed frontmatter in unmarshalled YAML.
 //
 // # Default values
@@ -73,13 +79,13 @@ func (*customTexter) AnchorText(h *anchor.HeaderInfo) []byte {
 // Convert source b with renderer r to give html and Metadata.
 //
 // Requires r to have the fronmatter extension.
-func convert(b []byte, r goldmark.Markdown) ([]byte, Metadata, error) {
+func (s* Source) convert(r goldmark.Markdown) ([]byte, Metadata, error) {
 	w := new(bytes.Buffer)
 
 	// Get context
 	ctx := parser.NewContext()
 
-	if err := r.Convert(b, w, parser.WithContext(ctx)); err != nil {
+	if err := r.Convert(s.B, w, parser.WithContext(ctx)); err != nil {
 		return nil,
 			Metadata{},
 			fmt.Errorf("converting to markdown: %w", err)
@@ -99,23 +105,18 @@ func convert(b []byte, r goldmark.Markdown) ([]byte, Metadata, error) {
 }
 
 // Parse metadata (frontmatter) from source b.
-func ParseMetadata(b []byte) (Metadata, error) {
+func (s *Source) ParseMetadata() (Metadata, error) {
 	r := goldmark.New(goldmark.WithExtensions(&frontmatter.Extender{}))
-	_, md, err := convert(b, r)
+	_, md, err := s.convert(r)
 	if err != nil {
 		return Metadata{}, fmt.Errorf("convert markdown: %w", err)
 	}
 	return md, nil
 }
 
-// Is the file a draft?
-func IsDraft(md Metadata) bool {
-	return md.Draft
-}
-
 // Read in b and parse body.
 // Frontmatter is reprocessed to strip it.
-func ParseSource(b []byte, isToc bool, isHighlight bool) ([]byte, error) {
+func (s *Source) ParseSource() ([]byte, error) {
 	ext := []goldmark.Extender{
 		&anchor.Extender{
 			Texter: &customTexter{},
@@ -135,10 +136,10 @@ func ParseSource(b []byte, isToc bool, isHighlight bool) ([]byte, error) {
 		extension.Footnote,
 		extension.Typographer,
 	}
-	if isToc {
+	if s.IsTOC {
 		ext = append(ext, &toc.Extender{})
 	}
-	if isHighlight {
+	if s.IsHighlight {
 		ext = append(ext, highlighting.NewHighlighting(
 			highlighting.WithStyle("friendly"),
 		))
@@ -148,7 +149,7 @@ func ParseSource(b []byte, isToc bool, isHighlight bool) ([]byte, error) {
 		goldmark.WithParserOptions(parser.WithAutoHeadingID()),
 		goldmark.WithRendererOptions(html.WithUnsafe()),
 	)
-	body, _, err := convert(b, r)
+	body, _, err := s.convert(r)
 	if err != nil {
 		return nil,
 			fmt.Errorf("convert markdown: %w", err)
@@ -158,10 +159,10 @@ func ParseSource(b []byte, isToc bool, isHighlight bool) ([]byte, error) {
 }
 
 // Parse b to find all other links within the document.
-func ParseInternalLinks(b []byte) ([]string, []string, error) {
+func (s *Source) ParseInternalLinks() ([]string, []string, error) {
 	var ilinks []string
 	var blinks []string
-	t := text.NewReader(b)
+	t := text.NewReader(s.B)
 	wp := wikilink.Parser{}
 
 	// Construct custom parser with lighter options

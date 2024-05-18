@@ -129,8 +129,6 @@ location / {
 Additionally, setting `keepExtension: false` will strip ".html" from href
 links. This might be necessary if you use weird browsers that break redirects.
 
-<img src="assets/sketching_gopher.png" alt="sketching gopher" width="200"/>
-
 ## Credits
 
 - [ter](https://github.com/kkga/ter) - main inspiration

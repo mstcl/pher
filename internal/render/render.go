@@ -59,37 +59,15 @@ type RenderData struct {
 }
 
 // Template html with data d.
-func (rd *RenderData) Render(t *template.Template, isDry bool) error {
+func (rd *RenderData) Render(t *template.Template, isDry bool, templateName string) error {
 	// Template the current file
 	w := new(bytes.Buffer)
-	if err := t.ExecuteTemplate(w, "index", rd); err != nil {
+	if err := t.ExecuteTemplate(w, templateName, rd); err != nil {
 		return err
 	}
 
 	// Ensure output directory exists
-	if err := os.MkdirAll(util.GetFilePath(rd.OutFilename), os.ModePerm); err != nil {
-		return fmt.Errorf("error mkdir: %w", err)
-	}
-
-	// Save output html to disk
-	if !isDry {
-		if err := os.WriteFile(rd.OutFilename, w.Bytes(), 0o644); err != nil {
-			return fmt.Errorf("error writing entry to disk: %w", err)
-		}
-	}
-	return nil
-}
-
-// Template tags page
-func (rd *RenderData) RenderTags(t *template.Template, isDry bool) error {
-	// Template the current file
-	w := new(bytes.Buffer)
-	if err := t.ExecuteTemplate(w, "tags", rd); err != nil {
-		return err
-	}
-
-	// Ensure output directory exists
-	if err := os.MkdirAll(util.GetFilePath(rd.OutFilename), os.ModePerm); err != nil {
+	if err := os.MkdirAll(util.GetFilePath(rd.OutFilename), 0o755); err != nil {
 		return fmt.Errorf("error mkdir: %w", err)
 	}
 
@@ -168,7 +146,7 @@ func (m *Meta) RenderAll() error {
 		}
 
 		// Render
-		if err = rd.Render(m.Templates, m.IsDry); err != nil {
+		if err = rd.Render(m.Templates, m.IsDry, "index"); err != nil {
 			return err
 		}
 	}
@@ -179,7 +157,7 @@ func (m *Meta) RenderAll() error {
 		TagsListing: m.T,
 		OutFilename: m.OutDir + "/tags.html",
 	}
-	if err := td.RenderTags(m.Templates, m.IsDry); err != nil {
+	if err := td.Render(m.Templates, m.IsDry, "tags"); err != nil {
 		return err
 	}
 	return nil

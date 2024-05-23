@@ -39,6 +39,8 @@ type Meta struct {
 type RenderData struct {
 	Body                                     template.HTML
 	Head                                     template.HTML
+	WikiTitle                                string
+	Url                                      string
 	Title                                    string
 	Description                              string
 	Layout                                   string
@@ -118,6 +120,8 @@ func (m *Meta) RenderAll() error {
 			Head:         template.HTML(m.C.Head),
 			RootCrumb:    m.C.RootCrumb,
 			Footer:       m.C.Footer,
+			WikiTitle:    m.C.Title,
+			Url:          m.C.Url + e.Href,
 			Crumbs:       crumbs,
 		}
 		rd.Title = util.ResolveTitle(e.Metadata.Title, rd.Filename)

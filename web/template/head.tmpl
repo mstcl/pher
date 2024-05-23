@@ -2,8 +2,17 @@
   <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="description" content="{{.Description}}">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="{{.Title}} &middot; {{.WikiTitle}}">
+    <meta name="twitter:description" content="{{.Description}}">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="{{.Title}} &middot; {{.WikiTitle}}">
+    <meta property="og:description" content="{{.Description}}">
+    <meta property="og:url" content="{{.Url}}">
 	<link rel="icon" href="data:image/png;base64,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">
-	<title>{{ .Title }}</title>
+	<link rel="alternate" type="application/atom+xml" href="/feed.xml" title="{{.WikiTitle}}" />
+	<title>{{.Title}}</title>
 	<style type="text/css">
 html {
   line-height: 1.75;

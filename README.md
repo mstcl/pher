@@ -13,7 +13,7 @@ there are a few differences:
 - Wikilinks are supported thanks to abhinav's
   [extension](https://github.com/abhinav/goldmark-wikilink).
 - No CSS framework.
-- Comes a small standalone binary (~13M). No need for a runtime.
+- Comes a small standalone binary (~9M). No need for a runtime.
 - Some visual tweaks (personal preference).
 - The atom feed contains only dated entries.
 - Flatter file structure (no "rooting" every page). Let webservers handle the
@@ -22,7 +22,7 @@ there are a few differences:
 ## Installation
 
 ```bash
-$ go install github.com/mstcl/pher@master
+$ go install github.com/mstcl/pher@v1.1.0
 ```
 
 ## Usage
@@ -99,10 +99,11 @@ head: "" # String to inject inside HTML <head>
 - [x] Atom feed
 - [x] Configuration to inject into HTML <head>
 - [x] Frontmatter field for `dateUpdated`
+- [x] SEO fields
 
 ## Ideas
 
-- [ ] Compress images to webp or mozilla jpeb
+- [ ] Compress images to webp or mozilla jpeg
 
 ## Notes
 

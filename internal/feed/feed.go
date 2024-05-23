@@ -5,7 +5,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/gorilla/feeds"
 	"github.com/mstcl/pher/internal/config"
 	"github.com/mstcl/pher/internal/entry"
 )
@@ -20,16 +19,16 @@ type Meta struct {
 
 func (m *Meta) ConstructFeed() (string, error) {
 	now := time.Now()
-	author := &feeds.Author{Name: m.C.AuthorName, Email: m.C.AuthorEmail}
-	feed := &feeds.Feed{
+	author := &Author{Name: m.C.AuthorName, Email: m.C.AuthorEmail}
+	feed := &Feed{
 		Title:       m.C.Title,
-		Link:        &feeds.Link{Href: m.C.Url},
+		Link:        &Link{Href: m.C.Url},
 		Description: m.C.Description,
 		Author:      author,
 		Created:     now,
 	}
 
-	feed.Items = []*feeds.Item{}
+	feed.Items = []*Item{}
 
 	for _, v := range m.D {
 		md := v.Metadata
@@ -40,13 +39,14 @@ func (m *Meta) ConstructFeed() (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("parse time: %w", err)
 		}
-		entry := &feeds.Item{
+		entry := &Item{
 			Title:       md.Title,
-			Link:        &feeds.Link{Href: m.C.Url + v.Href},
+			Link:        &Link{Href: m.C.Url + v.Href},
 			Description: md.Description,
 			Author:      author,
 			Created:     t,
 			Content:     string(v.Body),
+			Categories:  md.Tags,
 		}
 		feed.Items = append(feed.Items, entry)
 	}

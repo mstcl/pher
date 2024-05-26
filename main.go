@@ -14,6 +14,7 @@ package main
 
 import (
 	"embed"
+	"log"
 
 	"github.com/mstcl/pher/internal/cli"
 )
@@ -23,5 +24,7 @@ var fs embed.FS
 
 func main() {
 	cli.Templates = fs
-	cli.Parse()
+	if err := cli.Parse(); err != nil {
+		log.Fatal(err)
+	}
 }

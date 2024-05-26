@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"html/template"
-	"log"
 	"path/filepath"
 
 	"github.com/mattn/go-zglob"
@@ -30,7 +29,7 @@ type meta struct {
 	isDry  bool
 }
 
-func Parse() {
+func Parse() error {
 	mt := meta{}
 
 	var cfgFile, outDir, inDir string
@@ -66,33 +65,30 @@ func Parse() {
 	// Get absolute paths
 	inDir, err = filepath.Abs(inDir)
 	if err != nil {
-		log.Fatal(fmt.Errorf("error getting absolute path: %w", err))
+		return fmt.Errorf("error getting absolute path: %w", err)
 	}
 	outDir, err = filepath.Abs(outDir)
 	if err != nil {
-		log.Fatal(fmt.Errorf("error getting absolute path: %w", err))
+		return fmt.Errorf("error getting absolute path: %w", err)
 	}
 	cfgFile, err = filepath.Abs(cfgFile)
 	if err != nil {
-		log.Fatal(fmt.Errorf("error getting absolute path: %w", err))
-	}
-	if err != nil {
-		log.Fatal(fmt.Errorf("error get absolute paths: %w", err))
+		return fmt.Errorf("error getting absolute path: %w", err)
 	}
 
 	// Check paths
 	if fExist, err := util.IsFileExist(inDir); err != nil {
-		log.Fatal(fmt.Errorf("error when stat file or directory %s: %w", inDir, err))
+		return fmt.Errorf("error when stat file or directory %s: %w", inDir, err)
 	} else if !fExist {
-		log.Fatal(fmt.Errorf("no such file or directory: %s", cfgFile))
+		return fmt.Errorf("no such file or directory: %s", cfgFile)
 	}
 	if fExist, err := util.IsFileExist(cfgFile); err != nil {
-		log.Fatal(fmt.Errorf("error when stat file or directory %s: %w", cfgFile, err))
+		return fmt.Errorf("error when stat file or directory %s: %w", cfgFile, err)
 	} else if !fExist {
-		log.Fatal(fmt.Errorf("no such file or directory: %s", cfgFile))
+		return fmt.Errorf("no such file or directory: %s", cfgFile)
 	}
 	if err = util.EnsureDir(outDir); err != nil {
-		log.Fatal(fmt.Errorf("make directory: %w", err))
+		return fmt.Errorf("make directory: %w", err)
 	}
 	mt.inDir = inDir
 	mt.outDir = outDir
@@ -100,7 +96,7 @@ func Parse() {
 	// Handle configuration
 	cfg, err := config.Read(cfgFile)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	mt.c = cfg
 
@@ -108,10 +104,10 @@ func Parse() {
 	if !isDry {
 		contents, err := filepath.Glob(outDir + "/*")
 		if err != nil {
-			log.Fatal(fmt.Errorf("glob files: %w", err))
+			return fmt.Errorf("glob files: %w", err)
 		}
 		if err = util.RemoveContents(contents); err != nil {
-			log.Fatal(fmt.Errorf("rm files: %w", err))
+			return fmt.Errorf("rm files: %w", err)
 		}
 	}
 	mt.isDry = isDry
@@ -124,14 +120,28 @@ func Parse() {
 	// Grab files and reorder so indexes are processed last
 	files, err := zglob.Glob(inDir + "/**/*.md")
 	if err != nil {
-		log.Fatal(fmt.Errorf("glob files: %w", err))
+		return fmt.Errorf("glob files: %w", err)
 	}
 	mt.files = util.ReorderFiles(files)
 
-	d, t, i, l, skip := mt.extract()
-	mt.move(i)
-	mt.render(d, t, l, skip)
-	mt.feed(d)
+	d, t, i, l, skip, err := mt.extract()
+	if err != nil {
+		return err
+	}
+
+	if err := mt.move(i); err != nil {
+		return err
+	}
+
+	if err := mt.render(d, t, l, skip); err != nil {
+		return err
+	}
+
+	if err := mt.feed(d); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Grab data numbered (1) - (4)
@@ -141,30 +151,32 @@ func (mt *meta) extract() (
 	map[string]bool,
 	map[string][]listing.Listing,
 	map[string]bool,
+	error,
 ) {
 	// Populate (1) entry data, (2) tags data, and (3) internal links.
 	m := extract.Meta{C: mt.c, InDir: mt.inDir, OutDir: mt.outDir}
 	d, t, i, err := m.ExtractEntry(mt.files)
 	if err != nil {
-		log.Fatal(err)
+		return nil, nil, nil, nil, nil, err
 	}
 	m.D = d
 
 	// Get (4) listings, needs (1) entry data
 	files, l, skip, err := m.ExtractAllListings(mt.files)
 	if err != nil {
-		log.Fatal(err)
+		return nil, nil, nil, nil, nil, err
 	}
 	mt.files = files
-	return d, t, i, l, skip
+	return d, t, i, l, skip, nil
 }
 
 // Copy asset dirs/files over to outDir.
 // (3) internal links are used here.
-func (mt *meta) move(i map[string]bool) {
+func (mt *meta) move(i map[string]bool) error {
 	if err := util.CopyExtraFiles(mt.inDir, mt.outDir, i); err != nil {
-		log.Fatal(err)
+		return err
 	}
+	return nil
 }
 
 // Render with (1) entry data, (2) tags data, and (4) listings
@@ -173,24 +185,26 @@ func (mt *meta) render(
 	t []tag.Tag,
 	l map[string][]listing.Listing,
 	skip map[string]bool,
-) {
+) error {
 	m := render.Meta{
 		C: mt.c, InDir: mt.inDir, OutDir: mt.outDir, D: d, T: t,
 		Templates: mt.t, L: l, Files: mt.files, Skip: skip, IsDry: mt.isDry,
 	}
 	if err := m.RenderAll(); err != nil {
-		log.Fatal(err)
+		return err
 	}
+	return nil
 }
 
 // Construct and render atom feeds, need (1) entry data.
-func (mt *meta) feed(d map[string]entry.Entry) {
+func (mt *meta) feed(d map[string]entry.Entry) error {
 	m := feed.Meta{C: mt.c, InDir: mt.inDir, OutDir: mt.outDir, IsDry: mt.isDry, D: d}
 	atom, err := m.ConstructFeed()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	if err := m.SaveFeed(atom); err != nil {
-		log.Fatal(err)
+		return err
 	}
+	return nil
 }

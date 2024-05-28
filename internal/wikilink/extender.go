@@ -9,12 +9,7 @@ import (
 
 // Extender extends a goldmark Markdown object with support for parsing and
 // rendering Wikilinks.
-type Extender struct {
-	// Resoler specifies how to resolve destinations for linked pages.
-	//
-	// Uses DefaultResolver if unspecified.
-	Resolver Resolver
-}
+type Extender struct {}
 
 // Extend extends the provided Markdown object with support for wikilinks.
 func (e *Extender) Extend(md goldmark.Markdown) {
@@ -31,7 +26,7 @@ func (e *Extender) Extend(md goldmark.Markdown) {
 	md.Renderer().AddOptions(
 		renderer.WithNodeRenderers(
 			util.Prioritized(&Renderer{
-				Resolver: e.Resolver,
+				Resolver: DefaultResolver,
 			}, 199),
 		),
 	)

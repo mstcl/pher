@@ -37,12 +37,6 @@ const (
 //		),
 //	)
 type Extender struct {
-	// Formats lists the front matter formats
-	// that are supported by the extender.
-	//
-	// If empty, DefaultFormats is used.
-	Formats []Format
-
 	// Mode specifies the mode in which the extender operates.
 	// See documentation of the Mode type for more information.
 	Mode Mode
@@ -55,7 +49,7 @@ func (e *Extender) Extend(md goldmark.Markdown) {
 	md.Parser().AddOptions(
 		parser.WithBlockParsers(
 			util.Prioritized(&Parser{
-				Formats: e.Formats,
+				Formats: DefaultFormats,
 			}, 0),
 		),
 	)

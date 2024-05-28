@@ -52,6 +52,7 @@ authorEmail: "" # author's email
 rootCrumb: "~" # render root link in navbar with this string.
 codeHighlight: true # render code with syntax highlighting.
 keepExtension: true # render hrefs with .html extension
+head: "" # String to inject inside HTML <head>
 
 # footer links, leave empty e.g. `footer: []` to disable
 footer:
@@ -78,7 +79,6 @@ draft: false # Don't render this entry
 toc: false # Render a table of contents for this entry
 showHeader: true # Show the header (title, description, tags, date)
 layout: "list" # Available values: "grid", "list", "log". Only effective for index.md files.
-head: "" # String to inject inside HTML <head>
 ---
 ```
 

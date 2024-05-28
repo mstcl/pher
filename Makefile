@@ -9,3 +9,6 @@ tidy:
 
 build:
 	go build -ldflags "-w -s" -o pher main.go
+
+install:
+	go install -ldflags "-w -s" main.go

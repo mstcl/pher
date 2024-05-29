@@ -6,45 +6,14 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/mattn/go-zglob"
 )
-
-// Get the nesting-depth of a filepath
-func GetDepth(dir string) int {
-	return len(strings.Split(dir, "/"))
-}
-
-// Given /abs/path/to/fileOrDir, where root is /abs/path, return
-// to/fileOrDir
-func GetRelativeFilePath(f string, root string) string {
-	depth := GetDepth(root)
-	return strings.Join(strings.Split(f, "/")[depth:], "/")
-}
-
-// Given /path/to/filename.ext, return filename.ext
-func GetFileName(f string) string {
-	chunks := strings.Split(f, "/")
-	base := chunks[len(chunks)-1]
-	return base
-}
 
 // Given /path/to/filename.ext, return filename
 func GetFileBase(f string) string {
-	chunks := strings.Split(f, "/")
-	base := chunks[len(chunks)-1]
-	return strings.TrimSuffix(base, filepath.Ext(base))
-}
-
-// Given /path/to/filename.ext, return /path/to
-func GetFilePath(f string) string {
-	chunks := strings.Split(f, "/")
-	return strings.Join(chunks[:len(chunks)-1], "/")
-}
-
-// Given /path/to/filename.ext, return .ext
-func GetFileExt(f string) string {
-	chunks := strings.Split(f, "/")
-	base := chunks[len(chunks)-1]
-	return filepath.Ext(base)
+	fn := filepath.Base(f)
+	return strings.TrimSuffix(fn, filepath.Ext(fn))
 }
 
 // OS delete given files
@@ -72,26 +41,30 @@ func ReorderFiles(files []string) []string {
 	return append(ni, yi...)
 }
 
-// If link is "/foo/bar/hello.md"
+// If link is "/a/b/c/file.md"
 //
-// crumbs is {"foo", "bar"}
+// crumbs is {"a", "b", "c"}
 //
-// crumbLinks is {"/foo", "/foo/bar"}
-func GetCrumbs(f string, inDir string, isExt bool) ([]string, []string) {
-	chunks := GetRelativeFilePath(f, inDir)
-	crumbs := strings.Split(chunks, "/")
+// crumbLinks is {"/a/index.html", "/a/b/index.html", "a/b/c/index.html"}
+func GetNavCrumbs(f string, inDir string, isExt bool) ([]string, []string) {
+	// inDir/a/b/c/file.md -> a/b/c/file.md
+	rel, _ := filepath.Rel(inDir, f)
+
+	// a/b/c/file.md -> {a, b, c, file.md}
+	crumbs := strings.Split(rel, "/")
+
+	// make the crumbLinks
 	crumbLinks := []string{}
 	for i := range crumbs {
+		// don't process last item
 		if i == len(crumbs)-1 {
 			break
 		}
-		if i != len(crumbs) {
-			cl := strings.Join(crumbs[:i+1], "/")
-			if isExt {
-				cl += "/index.html"
-			}
-			crumbLinks = append(crumbLinks, cl)
+		cl := strings.Join(crumbs[:i+1], "/")
+		if isExt {
+			cl += "/index.html"
 		}
+		crumbLinks = append(crumbLinks, cl)
 	}
 	return crumbs[:len(crumbs)-1], crumbLinks
 }
@@ -108,38 +81,19 @@ func ResolveTitle(mt string, fn string) string {
 }
 
 // Return the href
+// inDir/a/b/c/file.md -> a/b/c/file
 func ResolveHref(f string, inDir string, prefixSlash bool) string {
-	var href string
-	rel := GetFilePath(GetRelativeFilePath(f, inDir))
-	if len(rel) > 0 {
-		href = rel + "/" + GetFileBase(f)
-	} else {
-		href = GetFileBase(f)
-	}
+	// inDir/a/b/c/file.md -> a/b/c/file.md
+	rel, _ := filepath.Rel(inDir, f)
+
+	// a/b/c/file.md -> a/b/c/file
+	href := strings.TrimSuffix(rel, filepath.Ext(rel))
+
+	// a/b/c/file -> /a/b/c/file (for web rooting)
 	if prefixSlash {
 		href = "/" + href
 	}
 	return href
-}
-
-// Resolve out path of file or directory given absolute path f
-func ResolveOutPath(f string, inDir string, outDir string, newExt string) string {
-	chunks := GetRelativeFilePath(f, inDir)
-	chunks = GetFilePath(chunks)
-	if len(chunks) > 0 {
-		chunks += "/"
-	}
-
-	// Leave me and my extension alone
-	var fn string
-	if len(newExt) > 0 {
-		fn = GetFileBase(f) + newExt
-	} else {
-		fn = GetFileName(f)
-	}
-
-	o := outDir + "/" + chunks + fn
-	return o
 }
 
 // Resolve the date d from format YYYY-MM-DD
@@ -156,20 +110,20 @@ func ResolveDate(d string) (string, string, error) {
 }
 
 // Move extra files like assets (images, fonts, css) over to output, preserving
-// the structure.
+// the file structure.
 func CopyExtraFiles(inDir string, outDir string, files map[string]bool) error {
-	// Copy keys of i (internal image links) to outDir
-	for k := range files {
-		out := ResolveOutPath(k, inDir, outDir, "")
+	for f := range files {
+		// want our assets to go from inDir/a/b/c/image.png -> outDir/a/b/c/image.png
+		rel, _ := filepath.Rel(inDir, f)
+		out := outDir + "/" + rel
 
-		// Make dir to preserver structure
-		dirOut := GetFilePath(out)
-		if err := os.MkdirAll(dirOut, 0o755); err != nil {
-			return fmt.Errorf("mkdir: %w", err)
+		// Make dir on filesystem
+		if err := EnsureDir(filepath.Dir(out)); err != nil {
+			return fmt.Errorf("make directory: %w", err)
 		}
 
-		// Copy from in to out
-		b, err := os.ReadFile(k)
+		// Copy from f to out
+		b, err := os.ReadFile(f)
 		if err != nil {
 			return fmt.Errorf("read file: %w", err)
 		}
@@ -180,8 +134,10 @@ func CopyExtraFiles(inDir string, outDir string, files map[string]bool) error {
 	return nil
 }
 
+// Check for markdown files under directory
 func IsEntryPresent(f string) (bool, error) {
-	res, err := filepath.Glob(f + "/*.md")
+	// we want to check all nested files
+	res, err := zglob.Glob(f + "/**/*.md")
 	if err != nil {
 		return false, err
 	}
@@ -208,7 +164,7 @@ func RemoveExtension(f string) string {
 	return strings.TrimSuffix(f, filepath.Ext(f))
 }
 
-// Ensure directory exists
+// Ensure a directory exists
 func EnsureDir(dirName string) error {
 	if err := os.Mkdir(dirName, 0o755); err == nil {
 		return nil
@@ -224,4 +180,16 @@ func EnsureDir(dirName string) error {
 		return nil
 	}
 	return nil
+}
+
+// Remove hidden files from slice of files
+func RemoveHiddenFiles(inDir string, files []string) []string {
+	newFiles := []string{}
+	for _, f := range files {
+		if rel, _ := filepath.Rel(inDir, f); rel[0] == 46 {
+			continue
+		}
+		newFiles = append(newFiles, f)
+	}
+	return newFiles
 }

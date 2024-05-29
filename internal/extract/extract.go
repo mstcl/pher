@@ -34,9 +34,9 @@ type Meta struct {
 //
 // These are the returned data:
 //
-// d: entry.Entry (key: entry filename)
+// d: entry.Entry (key: entry absolute path)
 //
-// i: linked internal assets (key: asset filename)
+// i: linked internal assets (key: asset absolute path)
 func (m *Meta) ExtractEntry(files []string) (
 	map[string]entry.Entry,
 	[]tag.Tag,
@@ -81,7 +81,7 @@ func (m *Meta) ExtractEntry(files []string) (
 		}
 
 		// Resolve basic vars
-		path := util.GetFilePath(f)
+		path := filepath.Dir(f)
 		base := util.GetFileBase(f)
 		href := util.ResolveHref(f, m.InDir, true)
 		if m.C.IsExt {
@@ -146,7 +146,7 @@ func (m *Meta) ExtractEntry(files []string) (
 			ref, err := filepath.Abs(path + "/" + v)
 			// Process links with extensions as external files
 			// like images/gifs
-			if len(util.GetFileExt(ref)) > 0 {
+			if len(filepath.Ext(ref)) > 0 {
 				i[ref] = true
 			}
 			ref += ".md"
@@ -301,51 +301,53 @@ func (m *Meta) extractChildrenEntries(
 		IsDir := fst.Mode().IsDir()
 
 		// Skip hidden files
-		if util.GetRelativeFilePath(f, inDir)[0] == 46 {
+		if rel, _ := filepath.Rel(inDir, f); rel[0] == 46 {
 			continue
 		}
 
 		// Skip non-markdon files
-		if !IsDir && util.GetFileExt(f) != ".md" {
+		if !IsDir && filepath.Ext(f) != ".md" {
 			continue
 		}
 
-		// Skip index files, unlisted ones, and ones that utilize
-		// log listing
+		// Skip index files, unlisted ones
 		if util.GetFileBase(f) == "index" || m.D[f].Metadata.Unlisted {
 			continue
 		}
 
-		// Skip directories without any entry (markdown files)
+		// Don't render these files later
+		skip[f] = isLog
+
 		// Throw error if parent's view is Log but child is subdirectory
+		if IsDir && isLog {
+			return nil, nil, nil,
+				fmt.Errorf("subdirectory detected in log directory! abort")
+		}
+
+		// Skip directories without any entry (markdown files)
+		entryPresent, err := util.IsEntryPresent(f)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("glob files: %w", err)
+		}
+		if IsDir && !entryPresent {
+			continue
+		}
+
 		// Append to missing if index doesn't exist
 		if IsDir {
-			if isLog {
-				return nil, nil, nil,
-					fmt.Errorf("subdirectory detected in log directory! abort")
-			}
-			entryPresent, err := util.IsEntryPresent(f)
-			if err != nil {
-				return nil, nil, nil, fmt.Errorf("glob files: %w", err)
-			}
-			if !entryPresent {
-				continue
-			}
 			indexExists, err := util.IsFileExist(f + "/index.md")
 			if err != nil {
 				return nil, nil, nil,
 					fmt.Errorf(
-						"error when stat file or directory %s/index.md: %w",
-						f, err,
+						"error when stat file or directory %s/index.md: %w", f, err,
 					)
 			}
 			if !indexExists {
 				missing[f+"/index.md"] = true
 			}
-		} else {
-			skip[f] = isLog
 		}
 
+		// Prepare the listing
 		ld := listing.Listing{}
 
 		// Grab href target, different for file vs. dir
@@ -358,6 +360,7 @@ func (m *Meta) extractChildrenEntries(
 				fmt.Errorf("error creating listing entry for %s: %w", f, err)
 		}
 
+		// Now we act on the index files
 		if IsDir {
 			f = f + "/index.md"
 		}
@@ -383,7 +386,10 @@ func (m *Meta) constructListingEntry(
 ) (listing.Listing, error) {
 	// Get Href
 	if ld.IsDir {
-		target := util.GetRelativeFilePath(f, inDir)
+		target, err := filepath.Rel(inDir, f)
+		if err != nil {
+			return listing.Listing{}, err
+		}
 		ld.Title = target
 		if m.C.IsExt {
 			target += "/index.html"
@@ -409,6 +415,8 @@ func (m *Meta) constructListingEntry(
 		ld.Title = util.GetFileBase(f)
 	}
 	ld.Description = m.D[f].Metadata.Description
+
+	// Log entries for log layout
 
 	var err error
 	if isLog {
@@ -447,10 +455,28 @@ func (m *Meta) ExtractAllListings(files []string) (
 	}
 	for f := range missing {
 		entry := m.D[f]
+
+		// add index to our files to render
 		files = append(files, f)
 		md := parse.DefaultMetadata()
-		md.Title = util.GetFilePath(util.GetRelativeFilePath(f, m.InDir))
+
+		// we have inDir/a/b/c/index.md
+		// want to extract c
+		// i.e. title is the folder name
+
+		// inDir/a/b/c/index.md -> a/b/c/index.md
+		fn, _ := filepath.Rel(m.InDir, f)
+
+		// a/b/c/index.md -> a/b/c -> a/b, c
+		_, dir := filepath.Split(filepath.Dir(fn))
+
+		// title is c
+		md.Title = dir
+
+		// update Metadata
 		entry.Metadata = md
+
+		// update record
 		m.D[f] = entry
 	}
 	return files, l, skip, nil

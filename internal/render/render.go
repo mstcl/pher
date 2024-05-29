@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"os"
+	"path/filepath"
 
 	"github.com/mstcl/pher/internal/config"
 	"github.com/mstcl/pher/internal/entry"
@@ -69,7 +70,7 @@ func (rd *RenderData) Render(t *template.Template, isDry bool, templateName stri
 	}
 
 	// Ensure output directory exists
-	if err := os.MkdirAll(util.GetFilePath(rd.OutFilename), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(rd.OutFilename), 0o755); err != nil {
 		return fmt.Errorf("error mkdir: %w", err)
 	}
 
@@ -92,7 +93,7 @@ func (m *Meta) RenderAll() error {
 		}
 
 		// Get navigation crumbs
-		cr, cl := util.GetCrumbs(f, m.InDir, m.C.IsExt)
+		cr, cl := util.GetNavCrumbs(f, m.InDir, m.C.IsExt)
 
 		// Populate crumbs
 		crumbs := []listing.Listing{}
@@ -100,8 +101,8 @@ func (m *Meta) RenderAll() error {
 			crumbs = append(crumbs, listing.Listing{Href: cl[i], Title: v})
 		}
 
-		// Get output path
-		o := util.ResolveOutPath(f, m.InDir, m.OutDir, ".html")
+		// The output path outDir/{a/b/c/file}.html (part in curly brackets is the href)
+		o := m.OutDir + util.ResolveHref(f, m.InDir, true) + ".html"
 
 		// Construct rendering data (rd) from config, entry data, listing, nav
 		// crumbs, etc.

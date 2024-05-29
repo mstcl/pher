@@ -122,6 +122,10 @@ func Parse() error {
 	if err != nil {
 		return fmt.Errorf("glob files: %w", err)
 	}
+
+	files = util.RemoveHiddenFiles(inDir, files)
+
+	// Rearrange files and add to meta
 	mt.files = util.ReorderFiles(files)
 
 	d, t, i, l, skip, err := mt.extract()

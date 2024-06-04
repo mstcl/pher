@@ -14,4 +14,4 @@ build:
 	go build -gcflags "-l" -ldflags "-w -s" -o pher main.go
 
 install:
-	go install -gcflags "-l" -ldflags "-w -s" main.go
+	go install -gcflags "-l" -ldflags "-w -s" .

@@ -12,8 +12,8 @@ import (
 	"github.com/mstcl/pher/internal/entry"
 	"github.com/mstcl/pher/internal/listing"
 	"github.com/mstcl/pher/internal/parse"
+	"github.com/mstcl/pher/internal/convert"
 	"github.com/mstcl/pher/internal/tag"
-	"github.com/mstcl/pher/internal/util"
 )
 
 type Meta struct {
@@ -93,7 +93,7 @@ func (m *Meta) RenderAll() error {
 		}
 
 		// Get navigation crumbs
-		cr, cl := util.GetNavCrumbs(f, m.InDir, m.C.IsExt)
+		cr, cl := convert.NavCrumbs(f, m.InDir, m.C.IsExt)
 
 		// Populate crumbs
 		crumbs := []listing.Listing{}
@@ -102,14 +102,14 @@ func (m *Meta) RenderAll() error {
 		}
 
 		// The output path outDir/{a/b/c/file}.html (part in curly brackets is the href)
-		o := m.OutDir + util.ResolveHref(f, m.InDir, true) + ".html"
+		o := m.OutDir + convert.Href(f, m.InDir, true) + ".html"
 
 		// Construct rendering data (rd) from config, entry data, listing, nav
 		// crumbs, etc.
 		rd := RenderData{
 			OutFilename:  o,
 			Listing:      m.L[f],
-			Filename:     util.GetFileBase(f),
+			Filename:     convert.FileBase(f),
 			Description:  e.Metadata.Description,
 			Tags:         e.Metadata.Tags,
 			TOC:          e.Metadata.TOC,
@@ -125,7 +125,7 @@ func (m *Meta) RenderAll() error {
 			Url:          m.C.Url + e.Href,
 			Crumbs:       crumbs,
 		}
-		rd.Title = util.ResolveTitle(e.Metadata.Title, rd.Filename)
+		rd.Title = convert.Title(e.Metadata.Title, rd.Filename)
 		if m.C.IsExt {
 			rd.Ext = ".html"
 		} else {
@@ -134,13 +134,13 @@ func (m *Meta) RenderAll() error {
 
 		// Use date only if given
 		var err error
-		rd.Date, rd.MachineDate, err = util.ResolveDate(e.Metadata.Date)
+		rd.Date, rd.MachineDate, err = convert.Date(e.Metadata.Date)
 		if err != nil {
 			return err
 		}
 
 		// Use data updated only if given
-		rd.DateUpdated, rd.MachineDateUpdated, err = util.ResolveDate(e.Metadata.DateUpdated)
+		rd.DateUpdated, rd.MachineDateUpdated, err = convert.Date(e.Metadata.DateUpdated)
 		if err != nil {
 			return err
 		}

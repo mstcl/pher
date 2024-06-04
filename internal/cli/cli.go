@@ -15,7 +15,7 @@ import (
 	"github.com/mstcl/pher/internal/listing"
 	"github.com/mstcl/pher/internal/render"
 	"github.com/mstcl/pher/internal/tag"
-	"github.com/mstcl/pher/internal/util"
+	"github.com/mstcl/pher/internal/ioutil"
 )
 
 var Templates embed.FS
@@ -77,17 +77,17 @@ func Parse() error {
 	}
 
 	// Check paths
-	if fExist, err := util.IsFileExist(inDir); err != nil {
+	if fExist, err := ioutil.IsFileExist(inDir); err != nil {
 		return fmt.Errorf("error when stat file or directory %s: %w", inDir, err)
 	} else if !fExist {
 		return fmt.Errorf("no such file or directory: %s", cfgFile)
 	}
-	if fExist, err := util.IsFileExist(cfgFile); err != nil {
+	if fExist, err := ioutil.IsFileExist(cfgFile); err != nil {
 		return fmt.Errorf("error when stat file or directory %s: %w", cfgFile, err)
 	} else if !fExist {
 		return fmt.Errorf("no such file or directory: %s", cfgFile)
 	}
-	if err = util.EnsureDir(outDir); err != nil {
+	if err = ioutil.EnsureDir(outDir); err != nil {
 		return fmt.Errorf("make directory: %w", err)
 	}
 	mt.inDir = inDir
@@ -106,7 +106,7 @@ func Parse() error {
 		if err != nil {
 			return fmt.Errorf("glob files: %w", err)
 		}
-		if err = util.RemoveContents(contents); err != nil {
+		if err = ioutil.RemoveContents(contents); err != nil {
 			return fmt.Errorf("rm files: %w", err)
 		}
 	}
@@ -123,10 +123,10 @@ func Parse() error {
 		return fmt.Errorf("glob files: %w", err)
 	}
 
-	files = util.RemoveHiddenFiles(inDir, files)
+	files = ioutil.RemoveHiddenFiles(inDir, files)
 
 	// Rearrange files and add to meta
-	mt.files = util.ReorderFiles(files)
+	mt.files = ioutil.ReorderFiles(files)
 
 	d, t, i, l, skip, err := mt.extract()
 	if err != nil {
@@ -177,7 +177,7 @@ func (mt *meta) extract() (
 // Copy asset dirs/files over to outDir.
 // (3) internal links are used here.
 func (mt *meta) move(i map[string]bool) error {
-	if err := util.CopyExtraFiles(mt.inDir, mt.outDir, i); err != nil {
+	if err := ioutil.CopyExtraFiles(mt.inDir, mt.outDir, i); err != nil {
 		return err
 	}
 	return nil

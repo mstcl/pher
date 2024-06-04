@@ -6,14 +6,16 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/mattn/go-zglob"
 	"github.com/mstcl/pher/internal/config"
+	"github.com/mstcl/pher/internal/convert"
 	"github.com/mstcl/pher/internal/entry"
+	"github.com/mstcl/pher/internal/ioutil"
 	"github.com/mstcl/pher/internal/listing"
 	"github.com/mstcl/pher/internal/parse"
 	"github.com/mstcl/pher/internal/tag"
-	"github.com/mstcl/pher/internal/util"
 )
 
 type Meta struct {
@@ -82,12 +84,12 @@ func (m *Meta) ExtractEntry(files []string) (
 
 		// Resolve basic vars
 		path := filepath.Dir(f)
-		base := util.GetFileBase(f)
-		href := util.ResolveHref(f, m.InDir, true)
+		base := convert.FileBase(f)
+		href := convert.Href(f, m.InDir, true)
 		if m.C.IsExt {
 			href += ".html"
 		}
-		title := util.ResolveTitle(md.Title, base)
+		title := convert.Title(md.Title, base)
 
 		// Save href
 		entry.Href = href
@@ -208,7 +210,8 @@ func (m *Meta) constructUniqueRelLinks(
 
 	// remove self from l
 	for _, j := range l {
-		if m.InDir+util.RemoveExtension(j.Href)+".md" == f {
+		fn := strings.TrimSuffix(j.Href, filepath.Ext(j.Href))
+		if m.InDir+fn+".md" == f {
 			continue
 		}
 		u = append(u, j)
@@ -311,7 +314,7 @@ func (m *Meta) extractChildrenEntries(
 		}
 
 		// Skip index files, unlisted ones
-		if util.GetFileBase(f) == "index" || m.D[f].Metadata.Unlisted {
+		if convert.FileBase(f) == "index" || m.D[f].Metadata.Unlisted {
 			continue
 		}
 
@@ -325,7 +328,7 @@ func (m *Meta) extractChildrenEntries(
 		}
 
 		// Skip directories without any entry (markdown files)
-		entryPresent, err := util.IsEntryPresent(f)
+		entryPresent, err := ioutil.IsEntryPresent(f)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("glob files: %w", err)
 		}
@@ -335,7 +338,7 @@ func (m *Meta) extractChildrenEntries(
 
 		// Append to missing if index doesn't exist
 		if IsDir {
-			indexExists, err := util.IsFileExist(f + "/index.md")
+			indexExists, err := ioutil.IsFileExist(f + "/index.md")
 			if err != nil {
 				return nil, nil, nil,
 					fmt.Errorf(
@@ -398,7 +401,7 @@ func (m *Meta) constructListingEntry(
 		// Switch target to index for title & description
 		f += "/index.md"
 	} else {
-		target := util.ResolveHref(f, inDir, false)
+		target := convert.Href(f, inDir, false)
 		if m.C.IsExt {
 			target += ".html"
 		}
@@ -412,7 +415,7 @@ func (m *Meta) constructListingEntry(
 	if len(title) > 0 {
 		ld.Title = title
 	} else if !ld.IsDir {
-		ld.Title = util.GetFileBase(f)
+		ld.Title = convert.FileBase(f)
 	}
 	ld.Description = m.D[f].Metadata.Description
 
@@ -423,14 +426,14 @@ func (m *Meta) constructListingEntry(
 		ld.Body = template.HTML(m.D[f].Body)
 		date := m.D[f].Metadata.Date
 		if len(date) > 0 {
-			ld.Date, ld.MachineDate, err = util.ResolveDate(date)
+			ld.Date, ld.MachineDate, err = convert.Date(date)
 			if err != nil {
 				return listing.Listing{}, err
 			}
 		}
 		dateUpdated := m.D[f].Metadata.DateUpdated
 		if len(dateUpdated) > 0 {
-			ld.DateUpdated, ld.MachineDateUpdated, err = util.ResolveDate(dateUpdated)
+			ld.DateUpdated, ld.MachineDateUpdated, err = convert.Date(dateUpdated)
 			if err != nil {
 				return listing.Listing{}, err
 			}

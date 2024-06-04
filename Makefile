@@ -1,3 +1,6 @@
+CGO_ENABLED=0
+export CGO_ENABLED
+
 .DEFAULT_GOAL := build
 .PHONY: lint tidy build
 
@@ -8,7 +11,7 @@ tidy:
 	go mod tidy
 
 build:
-	go build -ldflags "-w -s" -o pher main.go
+	go build -gcflags "-l" -ldflags "-w -s" -o pher main.go
 
 install:
-	go install -ldflags "-w -s" main.go
+	go install -gcflags "-l" -ldflags "-w -s" main.go

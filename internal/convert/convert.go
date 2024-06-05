@@ -40,7 +40,7 @@ func Date(d string) (string, string, error) {
 //
 // crumbs is {"a", "b", "c"}
 //
-// crumbLinks is {"/a/index.html", "/a/b/index.html", "a/b/c/index.html"}
+// crumbLinks is {"a/index.html", "a/b/index.html", "a/b/c/index.html"}
 func NavCrumbs(f string, inDir string, isExt bool) ([]string, []string) {
 	// inDir/a/b/c/file.md -> a/b/c/file.md
 	rel, _ := filepath.Rel(inDir, f)

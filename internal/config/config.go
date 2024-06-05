@@ -1,7 +1,9 @@
 package config
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 
 	"gopkg.in/yaml.v3"
@@ -34,14 +36,24 @@ func DefaultConfig() Config {
 }
 
 func Read(f string) (*Config, error) {
-	b, err := os.ReadFile(f)
+	file, err := os.Open(f)
 	if err != nil {
 		return nil, fmt.Errorf("reading config: %w", err)
 	}
 
+	defer file.Close()
+	return handleConfig(file)
+}
+
+func handleConfig(file io.Reader) (*Config, error) {
+	buf := new(bytes.Buffer)
+	if _, err := buf.ReadFrom(file); err != nil {
+		return nil, err
+	}
+
 	cfg := DefaultConfig()
-	if err := yaml.Unmarshal(b, &cfg); err != nil {
-		return nil, fmt.Errorf("parsing config: %w", err)
+	if err := yaml.Unmarshal(buf.Bytes(), &cfg); err != nil {
+		return nil, err
 	}
 	return &cfg, nil
 }

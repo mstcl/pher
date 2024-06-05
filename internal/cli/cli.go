@@ -10,22 +10,27 @@ import (
 	"github.com/mattn/go-zglob"
 	"github.com/mstcl/pher/internal/config"
 	"github.com/mstcl/pher/internal/entry"
-	"github.com/mstcl/pher/internal/extract"
+
 	"github.com/mstcl/pher/internal/feed"
+	"github.com/mstcl/pher/internal/ioutil"
 	"github.com/mstcl/pher/internal/listing"
 	"github.com/mstcl/pher/internal/render"
 	"github.com/mstcl/pher/internal/tag"
-	"github.com/mstcl/pher/internal/ioutil"
 )
 
 var Templates embed.FS
 
 type meta struct {
 	c      *config.Config
-	t      *template.Template
+	tpl    *template.Template
+	d      map[string]entry.Entry
+	a      map[string]bool
+	skip   map[string]bool
+	l      map[string][]listing.Listing
 	inDir  string
 	outDir string
 	files  []string
+	t      []tag.Tag
 	isDry  bool
 }
 
@@ -115,7 +120,7 @@ func Parse() error {
 	// Fetch templates
 	tplDir := "web/template"
 	tpl := template.Must(template.ParseFS(Templates, filepath.Join(tplDir, "*")))
-	mt.t = tpl
+	mt.tpl = tpl
 
 	// Grab files and reorder so indexes are processed last
 	files, err := zglob.Glob(inDir + "/**/*.md")
@@ -128,71 +133,43 @@ func Parse() error {
 	// Rearrange files and add to meta
 	mt.files = ioutil.ReorderFiles(files)
 
-	d, t, i, l, skip, err := mt.extract()
-	if err != nil {
+	if err := mt.extractEntries(); err != nil {
 		return err
 	}
 
-	if err := mt.move(i); err != nil {
+	if err := mt.entryList(); err != nil {
 		return err
 	}
 
-	if err := mt.render(d, t, l, skip); err != nil {
+	if err := mt.move(); err != nil {
 		return err
 	}
 
-	if err := mt.feed(d); err != nil {
+	if err := mt.render(); err != nil {
+		return err
+	}
+
+	if err := mt.feed(); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-// Grab data numbered (1) - (4)
-func (mt *meta) extract() (
-	map[string]entry.Entry,
-	[]tag.Tag,
-	map[string]bool,
-	map[string][]listing.Listing,
-	map[string]bool,
-	error,
-) {
-	// Populate (1) entry data, (2) tags data, and (3) internal links.
-	m := extract.Meta{C: mt.c, InDir: mt.inDir, OutDir: mt.outDir}
-	d, t, i, err := m.ExtractEntry(mt.files)
-	if err != nil {
-		return nil, nil, nil, nil, nil, err
-	}
-	m.D = d
-
-	// Get (4) listings, needs (1) entry data
-	files, l, skip, err := m.ExtractAllListings(mt.files)
-	if err != nil {
-		return nil, nil, nil, nil, nil, err
-	}
-	mt.files = files
-	return d, t, i, l, skip, nil
-}
-
 // Copy asset dirs/files over to outDir.
 // (3) internal links are used here.
-func (mt *meta) move(i map[string]bool) error {
-	if err := ioutil.CopyExtraFiles(mt.inDir, mt.outDir, i); err != nil {
+func (mt *meta) move() error {
+	if err := ioutil.CopyExtraFiles(mt.inDir, mt.outDir, mt.a); err != nil {
 		return err
 	}
 	return nil
 }
 
 // Render with (1) entry data, (2) tags data, and (4) listings
-func (mt *meta) render(
-	d map[string]entry.Entry,
-	t []tag.Tag,
-	l map[string][]listing.Listing,
-	skip map[string]bool,
-) error {
+func (mt *meta) render() error {
 	m := render.Meta{
-		C: mt.c, InDir: mt.inDir, OutDir: mt.outDir, D: d, T: t,
-		Templates: mt.t, L: l, Files: mt.files, Skip: skip, IsDry: mt.isDry,
+		C: mt.c, InDir: mt.inDir, OutDir: mt.outDir, D: mt.d, T: mt.t,
+		Templates: mt.tpl, L: mt.l, Files: mt.files, Skip: mt.skip, IsDry: mt.isDry,
 	}
 	if err := m.RenderAll(); err != nil {
 		return err
@@ -201,8 +178,8 @@ func (mt *meta) render(
 }
 
 // Construct and render atom feeds, need (1) entry data.
-func (mt *meta) feed(d map[string]entry.Entry) error {
-	m := feed.Meta{C: mt.c, InDir: mt.inDir, OutDir: mt.outDir, IsDry: mt.isDry, D: d}
+func (mt *meta) feed() error {
+	m := feed.Meta{C: mt.c, InDir: mt.inDir, OutDir: mt.outDir, IsDry: mt.isDry, D: mt.d}
 	atom, err := m.ConstructFeed()
 	if err != nil {
 		return err
@@ -210,5 +187,33 @@ func (mt *meta) feed(d map[string]entry.Entry) error {
 	if err := m.SaveFeed(atom); err != nil {
 		return err
 	}
+	return nil
+}
+
+func (mt *meta) extractEntries() error {
+	m := entry.ExtractDeps{C: mt.c, InDir: mt.inDir, OutDir: mt.outDir}
+	if err := m.ExtractEntries(mt.files); err != nil {
+		return err
+	}
+
+	// update meta
+	mt.d = m.D
+	mt.a = m.A
+	mt.t = m.T
+	return nil
+}
+
+func (mt *meta) entryList() error {
+	m := entry.ListDeps{C: mt.c, InDir: mt.inDir, D: mt.d}
+	files, err := m.List(mt.files)
+	if err != nil {
+		return err
+	}
+
+	// update meta
+	mt.files = files
+	mt.l = m.L
+	mt.skip = m.Skip
+	mt.d = m.D
 	return nil
 }

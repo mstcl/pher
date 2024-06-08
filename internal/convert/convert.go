@@ -25,52 +25,52 @@ func Href(f string, inDir string, prefixSlash bool) string {
 
 // Resolve the date d from format YYYY-MM-DD
 // Returns a pretty date and a machine date
-func Date(d string) (string, string, error) {
-	if len(d) == 0 {
+func Date(date string) (string, string, error) {
+	if len(date) == 0 {
 		return "", "", nil
 	}
-	dt, err := time.Parse("2006-01-02", d)
+	dateTime, err := time.Parse("2006-01-02", date)
 	if err != nil {
 		return "", "", err
 	}
-	return dt.Format("02 Jan 2006"), dt.Format(time.RFC3339), nil
+	return dateTime.Format("02 Jan 2006"), dateTime.Format(time.RFC3339), nil
 }
 
 // If link is "/a/b/c/file.md"
 //
-// crumbs is {"a", "b", "c"}
+// crumbsTitle: {"a", "b", "c"}
 //
-// crumbLinks is {"a/index.html", "a/b/index.html", "a/b/c/index.html"}
+// crumbsLink: {"a/index.html", "a/b/index.html", "a/b/c/index.html"}
 func NavCrumbs(f string, inDir string, isExt bool) ([]string, []string) {
 	// inDir/a/b/c/file.md -> a/b/c/file.md
 	rel, _ := filepath.Rel(inDir, f)
 
 	// a/b/c/file.md -> {a, b, c, file.md}
-	crumbs := strings.Split(rel, "/")
+	crumbsTitle := strings.Split(rel, "/")
 
-	// make the crumbLinks
-	crumbLinks := []string{}
-	for i := range crumbs {
+	// make the crumbsLink
+	crumbsLink := []string{}
+	for i := range crumbsTitle {
 		// don't process last item
-		if i == len(crumbs)-1 {
+		if i == len(crumbsTitle)-1 {
 			break
 		}
-		cl := strings.Join(crumbs[:i+1], "/")
+		cl := strings.Join(crumbsTitle[:i+1], "/")
 		if isExt {
 			cl += "/index.html"
 		}
-		crumbLinks = append(crumbLinks, cl)
+		crumbsLink = append(crumbsLink, cl)
 	}
-	return crumbs[:len(crumbs)-1], crumbLinks
+	return crumbsTitle[:len(crumbsTitle)-1], crumbsLink
 }
 
 // Return title mt else fn
-func Title(mt string, fn string) string {
+func Title(metadataTitle string, filename string) string {
 	var title string
-	if len(mt) > 0 {
-		title = mt
+	if len(metadataTitle) > 0 {
+		title = metadataTitle
 	} else {
-		title = fn
+		title = filename
 	}
 	return title
 }

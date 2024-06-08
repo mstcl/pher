@@ -9,28 +9,28 @@ import (
 	"github.com/mstcl/pher/internal/entry"
 )
 
-type Meta struct {
-	C      *config.Config
-	D      map[string]entry.Entry
-	InDir  string
-	OutDir string
-	IsDry  bool
+type FeedDeps struct {
+	Config  *config.Config
+	Entries map[string]entry.Entry
+	InDir   string
+	OutDir  string
+	DryRun   bool
 }
 
-func (m *Meta) ConstructFeed() (string, error) {
+func (d *FeedDeps) ConstructFeed() (string, error) {
 	now := time.Now()
-	author := &Author{Name: m.C.AuthorName, Email: m.C.AuthorEmail}
+	author := &Author{Name: d.Config.AuthorName, Email: d.Config.AuthorEmail}
 	feed := &Feed{
-		Title:       m.C.Title,
-		Link:        &Link{Href: m.C.Url},
-		Description: m.C.Description,
+		Title:       d.Config.Title,
+		Link:        &Link{Href: d.Config.Url},
+		Description: d.Config.Description,
 		Author:      author,
 		Created:     now,
 	}
 
 	feed.Items = []*Item{}
 
-	for _, v := range m.D {
+	for _, v := range d.Entries {
 		md := v.Metadata
 		if len(md.Date) == 0 {
 			continue
@@ -41,7 +41,7 @@ func (m *Meta) ConstructFeed() (string, error) {
 		}
 		entry := &Item{
 			Title:       md.Title,
-			Link:        &Link{Href: m.C.Url + v.Href},
+			Link:        &Link{Href: d.Config.Url + v.Href},
 			Description: md.Description,
 			Author:      author,
 			Created:     t,
@@ -59,12 +59,12 @@ func (m *Meta) ConstructFeed() (string, error) {
 	return atom, nil
 }
 
-func (m *Meta) SaveFeed(atom string) error {
-	if m.IsDry {
+func (d *FeedDeps) SaveFeed(atom string) error {
+	if d.DryRun {
 		return nil
 	}
 	b := []byte(atom)
-	if err := os.WriteFile(m.OutDir+"/feed.xml", b, 0o644); err != nil {
+	if err := os.WriteFile(d.OutDir+"/feed.xml", b, 0o644); err != nil {
 		return fmt.Errorf("writing article: %w", err)
 	}
 	return nil

@@ -21,28 +21,28 @@ import (
 var Templates embed.FS
 
 type meta struct {
-	c      *config.Config
-	tpl    *template.Template
-	d      map[string]entry.Entry
-	a      map[string]bool
-	skip   map[string]bool
-	l      map[string][]listing.Listing
-	inDir  string
-	outDir string
-	files  []string
-	t      []tag.Tag
-	isDry  bool
+	config   *config.Config
+	template *template.Template
+	entries  map[string]entry.Entry
+	assets   map[string]bool
+	skip     map[string]bool
+	listings map[string][]listing.Listing
+	inDir    string
+	outDir   string
+	files    []string
+	tags     []tag.Tag
+	dryRun   bool
 }
 
 func Parse() error {
-	mt := meta{}
+	m := meta{}
 
-	var cfgFile, outDir, inDir string
+	var configFile, outDir, inDir string
 	var err error
-	var isDry bool
+	var dryRun bool
 
 	flag.StringVar(
-		&cfgFile,
+		&configFile,
 		"c",
 		"config.yaml",
 		"Path to config file",
@@ -60,7 +60,7 @@ func Parse() error {
 		"Output directory",
 	)
 	flag.BoolVar(
-		&isDry,
+		&dryRun,
 		"d",
 		false,
 		"Dry run---don't render (default false)",
@@ -76,37 +76,37 @@ func Parse() error {
 	if err != nil {
 		return fmt.Errorf("error getting absolute path: %w", err)
 	}
-	cfgFile, err = filepath.Abs(cfgFile)
+	configFile, err = filepath.Abs(configFile)
 	if err != nil {
 		return fmt.Errorf("error getting absolute path: %w", err)
 	}
 
 	// Check paths
-	if fExist, err := ioutil.IsFileExist(inDir); err != nil {
+	if fileExist, err := ioutil.IsFileExist(inDir); err != nil {
 		return fmt.Errorf("error when stat file or directory %s: %w", inDir, err)
-	} else if !fExist {
-		return fmt.Errorf("no such file or directory: %s", cfgFile)
+	} else if !fileExist {
+		return fmt.Errorf("no such file or directory: %s", configFile)
 	}
-	if fExist, err := ioutil.IsFileExist(cfgFile); err != nil {
-		return fmt.Errorf("error when stat file or directory %s: %w", cfgFile, err)
-	} else if !fExist {
-		return fmt.Errorf("no such file or directory: %s", cfgFile)
+	if fileExist, err := ioutil.IsFileExist(configFile); err != nil {
+		return fmt.Errorf("error when stat file or directory %s: %w", configFile, err)
+	} else if !fileExist {
+		return fmt.Errorf("no such file or directory: %s", configFile)
 	}
 	if err = ioutil.EnsureDir(outDir); err != nil {
 		return fmt.Errorf("make directory: %w", err)
 	}
-	mt.inDir = inDir
-	mt.outDir = outDir
+	m.inDir = inDir
+	m.outDir = outDir
 
 	// Handle configuration
-	cfg, err := config.Read(cfgFile)
+	cfg, err := config.Read(configFile)
 	if err != nil {
 		return err
 	}
-	mt.c = cfg
+	m.config = cfg
 
 	// Clean output directory
-	if !isDry {
+	if !dryRun {
 		contents, err := filepath.Glob(outDir + "/*")
 		if err != nil {
 			return fmt.Errorf("glob files: %w", err)
@@ -115,12 +115,12 @@ func Parse() error {
 			return fmt.Errorf("rm files: %w", err)
 		}
 	}
-	mt.isDry = isDry
+	m.dryRun = dryRun
 
 	// Fetch templates
 	tplDir := "web/template"
 	tpl := template.Must(template.ParseFS(Templates, filepath.Join(tplDir, "*")))
-	mt.tpl = tpl
+	m.template = tpl
 
 	// Grab files and reorder so indexes are processed last
 	files, err := zglob.Glob(inDir + "/**/*.md")
@@ -131,25 +131,25 @@ func Parse() error {
 	files = ioutil.RemoveHiddenFiles(inDir, files)
 
 	// Rearrange files and add to meta
-	mt.files = ioutil.ReorderFiles(files)
+	m.files = ioutil.ReorderFiles(files)
 
-	if err := mt.extractEntries(); err != nil {
+	if err := m.extractEntries(); err != nil {
 		return err
 	}
 
-	if err := mt.entryList(); err != nil {
+	if err := m.entryList(); err != nil {
 		return err
 	}
 
-	if err := mt.move(); err != nil {
+	if err := m.move(); err != nil {
 		return err
 	}
 
-	if err := mt.render(); err != nil {
+	if err := m.render(); err != nil {
 		return err
 	}
 
-	if err := mt.feed(); err != nil {
+	if err := m.feed(); err != nil {
 		return err
 	}
 
@@ -158,62 +158,62 @@ func Parse() error {
 
 // Copy asset dirs/files over to outDir.
 // (3) internal links are used here.
-func (mt *meta) move() error {
-	if err := ioutil.CopyExtraFiles(mt.inDir, mt.outDir, mt.a); err != nil {
+func (m *meta) move() error {
+	if err := ioutil.CopyExtraFiles(m.inDir, m.outDir, m.assets); err != nil {
 		return err
 	}
 	return nil
 }
 
 // Render with (1) entry data, (2) tags data, and (4) listings
-func (mt *meta) render() error {
-	m := render.Meta{
-		C: mt.c, InDir: mt.inDir, OutDir: mt.outDir, D: mt.d, T: mt.t,
-		Templates: mt.tpl, L: mt.l, Files: mt.files, Skip: mt.skip, IsDry: mt.isDry,
+func (m *meta) render() error {
+	d := render.RenderDeps{
+		Config: m.config, InDir: m.inDir, OutDir: m.outDir, Entries: m.entries, Tags: m.tags,
+		Templates: m.template, Listings: m.listings, Files: m.files, Skip: m.skip, DryRun: m.dryRun,
 	}
-	if err := m.RenderAll(); err != nil {
+	if err := d.RenderAll(); err != nil {
 		return err
 	}
 	return nil
 }
 
 // Construct and render atom feeds, need (1) entry data.
-func (mt *meta) feed() error {
-	m := feed.Meta{C: mt.c, InDir: mt.inDir, OutDir: mt.outDir, IsDry: mt.isDry, D: mt.d}
-	atom, err := m.ConstructFeed()
+func (m *meta) feed() error {
+	d := feed.FeedDeps{Config: m.config, InDir: m.inDir, OutDir: m.outDir, DryRun: m.dryRun, Entries: m.entries}
+	atom, err := d.ConstructFeed()
 	if err != nil {
 		return err
 	}
-	if err := m.SaveFeed(atom); err != nil {
+	if err := d.SaveFeed(atom); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (mt *meta) extractEntries() error {
-	m := entry.ExtractDeps{C: mt.c, InDir: mt.inDir, OutDir: mt.outDir}
-	if err := m.ExtractEntries(mt.files); err != nil {
+func (m *meta) extractEntries() error {
+	d := entry.ExtractDeps{Config: m.config, InDir: m.inDir, OutDir: m.outDir}
+	if err := d.ExtractEntries(m.files); err != nil {
 		return err
 	}
 
 	// update meta
-	mt.d = m.D
-	mt.a = m.A
-	mt.t = m.T
+	m.entries = d.Entries
+	m.assets = d.Assets
+	m.tags = d.Tags
 	return nil
 }
 
-func (mt *meta) entryList() error {
-	m := entry.ListDeps{C: mt.c, InDir: mt.inDir, D: mt.d}
-	files, err := m.List(mt.files)
+func (m *meta) entryList() error {
+	d := entry.ListDeps{Config: m.config, InDir: m.inDir, Entries: m.entries}
+	files, err := d.List(m.files)
 	if err != nil {
 		return err
 	}
 
 	// update meta
-	mt.files = files
-	mt.l = m.L
-	mt.skip = m.Skip
-	mt.d = m.D
+	m.files = files
+	m.listings = d.Listings
+	m.skip = d.Skip
+	m.entries = d.Entries
 	return nil
 }

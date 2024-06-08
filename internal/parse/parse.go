@@ -20,9 +20,9 @@ import (
 )
 
 type Source struct {
-	B           []byte
-	IsTOC       bool
-	IsHighlight bool
+	Body             []byte
+	RendersTOC       bool
+	RendersHighlight bool
 }
 
 // Allowed frontmatter in unmarshalled YAML.
@@ -79,13 +79,13 @@ func (*customTexter) AnchorText(h *anchor.HeaderInfo) []byte {
 // Convert source b with renderer r to give html and Metadata.
 //
 // Requires r to have the fronmatter extension.
-func (s* Source) convert(r goldmark.Markdown) ([]byte, Metadata, error) {
+func (s *Source) convert(r goldmark.Markdown) ([]byte, Metadata, error) {
 	w := new(bytes.Buffer)
 
 	// Get context
-	ctx := parser.NewContext()
+	context := parser.NewContext()
 
-	if err := r.Convert(s.B, w, parser.WithContext(ctx)); err != nil {
+	if err := r.Convert(s.Body, w, parser.WithContext(context)); err != nil {
 		return nil,
 			Metadata{},
 			fmt.Errorf("converting to markdown: %w", err)
@@ -94,7 +94,7 @@ func (s* Source) convert(r goldmark.Markdown) ([]byte, Metadata, error) {
 	md := DefaultMetadata()
 
 	// Decode frontmatter
-	d := frontmatter.Get(ctx)
+	d := frontmatter.Get(context)
 	if err := d.Decode(&md); err != nil {
 		return nil,
 			Metadata{},
@@ -136,10 +136,10 @@ func (s *Source) ParseSource() ([]byte, error) {
 		extension.Footnote,
 		extension.Typographer,
 	}
-	if s.IsTOC {
+	if s.RendersTOC {
 		ext = append(ext, &toc.Extender{})
 	}
-	if s.IsHighlight {
+	if s.RendersHighlight {
 		ext = append(ext, highlighting.NewHighlighting(
 			highlighting.WithStyle("friendly"),
 		))
@@ -160,19 +160,22 @@ func (s *Source) ParseSource() ([]byte, error) {
 
 // Parse b to find all other links within the document.
 func (s *Source) ParseInternalLinks() ([]string, []string, error) {
-	var ilinks []string
-	var blinks []string
-	t := text.NewReader(s.B)
-	wp := wikilink.Parser{}
+	// il: internal links
+	var il []string
+	// bl: back links
+	var bl []string
+
+	r := text.NewReader(s.Body)
+	wikiLinkParser := wikilink.Parser{}
 
 	// Construct custom parser with lighter options
-	wikilinkParser := util.Prioritized(&wp, 199)
+	wikilinkParser := util.Prioritized(&wikiLinkParser, 199)
 	linkParser := util.Prioritized(parser.NewLinkParser(), 200)
 	paragraphParser := util.Prioritized(parser.NewParagraphParser(), 1000)
 	listParser := util.Prioritized(parser.NewListParser(), 300)
 	listItemParser := util.Prioritized(parser.NewListItemParser(), 400)
 	BlockquoteParser := util.Prioritized(parser.NewBlockquoteParser(), 800)
-	z := parser.NewParser(parser.WithBlockParsers([]util.PrioritizedValue{
+	p := parser.NewParser(parser.WithBlockParsers([]util.PrioritizedValue{
 		paragraphParser,
 		listItemParser,
 		listParser,
@@ -187,26 +190,26 @@ func (s *Source) ParseInternalLinks() ([]string, []string, error) {
 	)
 
 	// Parse and walk through nodes to find internal links
-	p := z.Parse(t)
+	nodes := p.Parse(r)
 	walker := func(n ast.Node, entering bool) (ast.WalkStatus, error) {
 		if !entering {
 			return ast.WalkContinue, nil
 		}
 		switch n := n.(type) {
 		case *ast.Image:
-			t := string(n.Destination)
-			ilinks = append(ilinks, t)
+			dest := string(n.Destination)
+			il = append(il, dest)
 		case *wikilink.Node:
-			t := string(n.Target)
-			blinks = append(blinks, t)
+			target := string(n.Target)
+			bl = append(bl, target)
 		default:
 			return ast.WalkContinue, nil
 		}
 		return ast.WalkContinue, nil
 	}
-	err := ast.Walk(p, walker)
+	err := ast.Walk(nodes, walker)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error extracting internal links: %w", err)
 	}
-	return blinks, ilinks, nil
+	return bl, il, nil
 }

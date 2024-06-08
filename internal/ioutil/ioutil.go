@@ -21,17 +21,17 @@ func RemoveContents(contents []string) error {
 
 // Move all index.md from files to the end so they are processed last
 func ReorderFiles(files []string) []string {
-	var ni []string
-	var yi []string
+	var notIndex []string
+	var index []string
 	for _, i := range files {
 		base := convert.FileBase(i)
 		if base == "index" {
-			yi = append(yi, i)
+			index = append(index, i)
 			continue
 		}
-		ni = append(ni, i)
+		notIndex = append(notIndex, i)
 	}
-	return append(ni, yi...)
+	return append(notIndex, index...)
 }
 
 // Move extra files like assets (images, fonts, css) over to output, preserving
@@ -40,10 +40,10 @@ func CopyExtraFiles(inDir string, outDir string, files map[string]bool) error {
 	for f := range files {
 		// want our assets to go from inDir/a/b/c/image.png -> outDir/a/b/c/image.png
 		rel, _ := filepath.Rel(inDir, f)
-		out := outDir + "/" + rel
+		path := outDir + "/" + rel
 
 		// Make dir on filesystem
-		if err := EnsureDir(filepath.Dir(out)); err != nil {
+		if err := EnsureDir(filepath.Dir(path)); err != nil {
 			return fmt.Errorf("make directory: %w", err)
 		}
 
@@ -52,7 +52,7 @@ func CopyExtraFiles(inDir string, outDir string, files map[string]bool) error {
 		if err != nil {
 			return fmt.Errorf("read file: %w", err)
 		}
-		if err = os.WriteFile(out, b, 0o644); err != nil {
+		if err = os.WriteFile(path, b, 0o644); err != nil {
 			return fmt.Errorf("write file: %w", err)
 		}
 	}
@@ -62,11 +62,11 @@ func CopyExtraFiles(inDir string, outDir string, files map[string]bool) error {
 // Check for markdown files under directory
 func IsEntryPresent(f string) (bool, error) {
 	// we want to check all nested files
-	res, err := zglob.Glob(f + "/**/*.md")
+	files, err := zglob.Glob(f + "/**/*.md")
 	if err != nil {
 		return false, err
 	}
-	if len(res) == 0 {
+	if len(files) == 0 {
 		return false, nil
 	}
 	return true, nil
@@ -85,12 +85,12 @@ func IsFileExist(f string) (bool, error) {
 }
 
 // Ensure a directory exists
-func EnsureDir(dirName string) error {
-	if err := os.Mkdir(dirName, 0o755); err == nil {
+func EnsureDir(dir string) error {
+	if err := os.Mkdir(dir, 0o755); err == nil {
 		return nil
 	} else if os.IsExist(err) {
 		// check that the existing path is a directory
-		info, err := os.Stat(dirName)
+		info, err := os.Stat(dir)
 		if err != nil {
 			return err
 		}

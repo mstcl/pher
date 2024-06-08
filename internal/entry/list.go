@@ -16,12 +16,12 @@ import (
 
 // Required dependencies
 type ListDeps struct {
-	C       *config.Config
-	D       map[string]Entry
-	Missing map[string]bool
-	Skip    map[string]bool
-	L       map[string][]listing.Listing
-	InDir   string
+	Config   *config.Config
+	Entries  map[string]Entry
+	Missing  map[string]bool
+	Skip     map[string]bool
+	Listings map[string][]listing.Listing
+	InDir    string
 }
 
 // Get all nested directories (the parents), and call
@@ -33,13 +33,13 @@ type ListDeps struct {
 //
 // * skip: bool map of files that should not be rendered (because its parents
 // is displaying a log)
-func (m *ListDeps) listEntries(
+func (d *ListDeps) listEntries(
 	inDir string,
 ) error {
 	// Initialize maps
-	m.L = make(map[string][]listing.Listing)
-	m.Missing = make(map[string]bool)
-	m.Skip = make(map[string]bool)
+	d.Listings = make(map[string][]listing.Listing)
+	d.Missing = make(map[string]bool)
+	d.Skip = make(map[string]bool)
 
 	files, err := zglob.Glob(inDir + "/**/*")
 	if err != nil {
@@ -50,24 +50,24 @@ func (m *ListDeps) listEntries(
 	// Go through everything that aren't files
 	// Glob those directories for both files and directories
 	// These are PARENTS with listings
-	for _, dir := range files {
+	for _, f := range files {
 		// Stat files/directories
-		st, err := os.Stat(dir)
+		info, err := os.Stat(f)
 		if err != nil {
 			return err
 		}
 
 		// Only process directories
-		if st.Mode().IsRegular() {
+		if info.Mode().IsRegular() {
 			continue
 		}
 
 		// Glob under directory
-		children, err := filepath.Glob(dir + "/*")
+		children, err := filepath.Glob(f + "/*")
 		if err != nil {
 			return err
 		}
-		if err := m.listEntriesChildren(inDir, dir, children); err != nil {
+		if err := d.listEntriesChildren(inDir, f, children); err != nil {
 			return err
 		}
 	}
@@ -78,22 +78,22 @@ func (m *ListDeps) listEntries(
 // (parentDir) to populate and return the listing map, the missing map, and the
 // skip map. Additional calls constructListingEntry() to make individual listing
 // entry.
-func (m *ListDeps) listEntriesChildren(
+func (d *ListDeps) listEntriesChildren(
 	inDir string,
 	parentDir string,
 	files []string,
 ) error {
 	// Whether to render children
 	// Use source file as key for consistency
-	dirI := parentDir + "/" + "index.md"
-	isLog := m.D[dirI].Metadata.Layout == "log"
+	dirIndex := parentDir + "/" + "index.md"
+	asLog := d.Entries[dirIndex].Metadata.Layout == "log"
 	for _, f := range files {
 		// Stat files/directories
-		fst, err := os.Stat(f)
+		info, err := os.Stat(f)
 		if err != nil {
 			return err
 		}
-		IsDir := fst.Mode().IsDir()
+		IsDir := info.Mode().IsDir()
 
 		// Skip hidden files
 		if rel, _ := filepath.Rel(inDir, f); rel[0] == 46 {
@@ -106,15 +106,15 @@ func (m *ListDeps) listEntriesChildren(
 		}
 
 		// Skip index files, unlisted ones
-		if convert.FileBase(f) == "index" || m.D[f].Metadata.Unlisted {
+		if convert.FileBase(f) == "index" || d.Entries[f].Metadata.Unlisted {
 			continue
 		}
 
 		// Don't render these files later
-		m.Skip[f] = isLog
+		d.Skip[f] = asLog
 
 		// Throw error if parent's view is Log but child is subdirectory
-		if IsDir && isLog {
+		if IsDir && asLog {
 			return err
 		}
 
@@ -134,18 +134,18 @@ func (m *ListDeps) listEntriesChildren(
 				return err
 			}
 			if !indexExists {
-				m.Missing[f+"/index.md"] = true
+				d.Missing[f+"/index.md"] = true
 			}
 		}
 
 		// Prepare the listing
-		ld := listing.Listing{}
+		l := listing.Listing{}
 
 		// Grab href target, different for file vs. dir
-		ld.IsDir = IsDir
+		l.IsDir = IsDir
 
 		// Construct the rest of the listing entry fields
-		ld, err = m.constructListing(ld, f, parentDir, isLog)
+		l, err = d.getListing(l, f, parentDir, asLog)
 		if err != nil {
 			return err
 		}
@@ -155,12 +155,12 @@ func (m *ListDeps) listEntriesChildren(
 			f = f + "/index.md"
 		}
 
-		// Append to ls
-		if m.D[f].Metadata.Pinned {
-			m.L[dirI] = append([]listing.Listing{ld}, m.L[dirI]...)
+		// Append to listing map
+		if d.Entries[f].Metadata.Pinned {
+			d.Listings[dirIndex] = append([]listing.Listing{l}, d.Listings[dirIndex]...)
 			continue
 		}
-		m.L[dirI] = append(m.L[dirI], ld)
+		d.Listings[dirIndex] = append(d.Listings[dirIndex], l)
 	}
 	return nil
 }
@@ -168,82 +168,82 @@ func (m *ListDeps) listEntriesChildren(
 // Complete a listing entry for a given child. Additionally add in relevant
 // rendering data fields like html body and tags for parents with log view
 // configured. Returns just a single listing corresponding to the given child.
-func (m *ListDeps) constructListing(
-	ld listing.Listing,
+func (d *ListDeps) getListing(
+	l listing.Listing,
 	f string,
 	inDir string,
 	isLog bool,
 ) (listing.Listing, error) {
 	// Get Href
-	if ld.IsDir {
+	if l.IsDir {
 		target, err := filepath.Rel(inDir, f)
 		if err != nil {
 			return listing.Listing{}, err
 		}
-		ld.Title = target
-		if m.C.IsExt {
+		l.Title = target
+		if d.Config.IsExt {
 			target += "/index.html"
 		}
-		ld.Href = target
+		l.Href = target
 		// Switch target to index for title & description
 		f += "/index.md"
 	} else {
 		target := convert.Href(f, inDir, false)
-		if m.C.IsExt {
+		if d.Config.IsExt {
 			target += ".html"
 		}
-		ld.Href = target
+		l.Href = target
 	}
 
 	// Grab titles and description.
 	// If metadata has title -> use that.
 	// If not -> use filename only if entry is not a directory
-	title := m.D[f].Metadata.Title
+	title := d.Entries[f].Metadata.Title
 	if len(title) > 0 {
-		ld.Title = title
-	} else if !ld.IsDir {
-		ld.Title = convert.FileBase(f)
+		l.Title = title
+	} else if !l.IsDir {
+		l.Title = convert.FileBase(f)
 	}
-	ld.Description = m.D[f].Metadata.Description
+	l.Description = d.Entries[f].Metadata.Description
 
 	// Log entries for log layout
 
 	var err error
 	if isLog {
-		ld.Body = template.HTML(m.D[f].Body)
-		date := m.D[f].Metadata.Date
+		l.Body = template.HTML(d.Entries[f].Body)
+		date := d.Entries[f].Metadata.Date
 		if len(date) > 0 {
-			ld.Date, ld.MachineDate, err = convert.Date(date)
+			l.Date, l.MachineDate, err = convert.Date(date)
 			if err != nil {
 				return listing.Listing{}, err
 			}
 		}
-		dateUpdated := m.D[f].Metadata.DateUpdated
+		dateUpdated := d.Entries[f].Metadata.DateUpdated
 		if len(dateUpdated) > 0 {
-			ld.DateUpdated, ld.MachineDateUpdated, err = convert.Date(dateUpdated)
+			l.DateUpdated, l.MachineDateUpdated, err = convert.Date(dateUpdated)
 			if err != nil {
 				return listing.Listing{}, err
 			}
 		}
-		ld.Tags = m.D[f].Metadata.Tags
+		l.Tags = d.Entries[f].Metadata.Tags
 	}
 
-	return ld, nil
+	return l, nil
 }
 
 // The main callable function for extract.go to call all the relevant functions
 // to populate listing, update files to add missing indexes, and skipped files
-func (m *ListDeps) List(files []string) (
+func (d *ListDeps) List(files []string) (
 	[]string,
 	error,
 ) {
-	if err := m.listEntries(m.InDir); err != nil {
+	if err := d.listEntries(d.InDir); err != nil {
 		return nil, err
 	}
 
 	// Update files
-	for f := range m.Missing {
-		entry := m.D[f]
+	for f := range d.Missing {
+		entry := d.Entries[f]
 
 		// add index to our files to render
 		files = append(files, f)
@@ -254,10 +254,10 @@ func (m *ListDeps) List(files []string) (
 		// i.e. title is the folder name
 
 		// inDir/a/b/c/index.md -> a/b/c/index.md
-		fn, _ := filepath.Rel(m.InDir, f)
+		rel, _ := filepath.Rel(d.InDir, f)
 
 		// a/b/c/index.md -> a/b/c -> a/b, c
-		_, dir := filepath.Split(filepath.Dir(fn))
+		_, dir := filepath.Split(filepath.Dir(rel))
 
 		// title is c
 		md.Title = dir
@@ -266,7 +266,7 @@ func (m *ListDeps) List(files []string) (
 		entry.Metadata = md
 
 		// update record
-		m.D[f] = entry
+		d.Entries[f] = entry
 	}
 	return files, nil
 }

@@ -51,12 +51,13 @@ func (d *ExtractDeps) ExtractEntries(files []string) error {
 		if err != nil {
 			return err
 		}
-		defer file.Close()
 
 		buf := new(bytes.Buffer)
 		if _, err := buf.ReadFrom(file); err != nil {
 			return err
 		}
+
+		file.Close()
 
 		// Extract source and save metadata
 		src := parse.Source{Body: buf.Bytes(), RendersHighlight: d.Config.CodeHighlight}

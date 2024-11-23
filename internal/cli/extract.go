@@ -103,7 +103,7 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 		// Update assets from internal links
 		for _, v := range links.InternalLinks {
 			// Absolutize image links
-			ref, err := filepath.Abs(path + "/" + v)
+			ref, err := filepath.Abs(filepath.Join(path, v))
 			if err != nil {
 				return nil
 			}
@@ -116,7 +116,7 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 		// Update assets and wikilinks from backlinks
 		for _, v := range links.BackLinks {
 			// Reconstruct wikilink into full input path
-			ref, err := filepath.Abs(path + "/" + v)
+			ref, err := filepath.Abs(filepath.Join(path, v))
 			if err != nil {
 				return err
 			}

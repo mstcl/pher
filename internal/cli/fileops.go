@@ -59,7 +59,7 @@ func syncAssets(ctx context.Context, s *state.State, logger *slog.Logger) error 
 		eg.Go(func() error {
 			// want our assets to go from inDir/a/b/c/image.png -> outDir/a/b/c/image.png
 			rel, _ := filepath.Rel(s.InDir, f)
-			path := s.OutDir + "/" + rel
+			path := filepath.Join(s.OutDir, rel)
 
 			// Make dir on filesystem
 			if err := checks.DirExist(filepath.Dir(path)); err != nil {

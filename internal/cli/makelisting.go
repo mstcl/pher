@@ -115,7 +115,7 @@ func makeFileListingHelper(
 ) error {
 	// Whether to render children
 	// Use source file as key for consistency
-	dirIndex := i.parentDir + "/" + "index.md"
+	dirIndex := filepath.Join(i.parentDir, "index.md")
 	isLog := s.Entries[dirIndex].Metadata.Layout == "log"
 
 	for _, f := range i.files {
@@ -209,7 +209,7 @@ func makeFileListingHelper(
 
 			l.Href = target
 			// Switch target to index for title & description
-			f += "/index.md"
+			f = filepath.Join(f, "index.md")
 		} else {
 			target := convert.Href(f, i.parentDir, false)
 			if s.Config.IsExt {

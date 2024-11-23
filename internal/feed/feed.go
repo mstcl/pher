@@ -2,14 +2,16 @@ package feed
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"time"
 
 	"github.com/mstcl/pher/internal/state"
 )
 
-func Construct(s *state.State) (string, error) {
+func Construct(s *state.State, logger *slog.Logger) (string, error) {
 	now := time.Now()
+
 	author := &Author{Name: s.Config.AuthorName, Email: s.Config.AuthorEmail}
 	feed := &Feed{
 		Title:       s.Config.Title,
@@ -22,6 +24,8 @@ func Construct(s *state.State) (string, error) {
 	feed.Items = []*Item{}
 
 	for _, v := range s.Entries {
+		child := logger.With(slog.String("href", v.Href), slog.String("context", "atom feed"))
+
 		md := v.Metadata
 		if len(md.Date) == 0 {
 			continue
@@ -41,7 +45,10 @@ func Construct(s *state.State) (string, error) {
 			Content:     string(v.Body),
 			Categories:  md.Tags,
 		}
+
 		feed.Items = append(feed.Items, entry)
+
+		child.Debug("Atom entry created")
 	}
 
 	atom, err := feed.ToAtom()

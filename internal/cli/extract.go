@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -21,7 +22,7 @@ import (
 // Calls source.ToHTML()
 // Calls source.ExtractLinks()
 // Further business logic to construct the backlinks, relatedlinks, asset map and tags slice
-func extractExtras(s *state.State) error {
+func extractExtras(s *state.State, logger *slog.Logger) error {
 	// tagsCount: tags count (key: tag name)
 	tagsCount := make(map[string]int)
 
@@ -30,22 +31,24 @@ func extractExtras(s *state.State) error {
 
 	// First loop, can do most things
 	for _, f := range s.Files {
+		child := logger.With(slog.String("filepath", f), slog.String("context", "extracting extras"))
+
 		entry := s.Entries[f]
 
-		// Read input file
 		file, err := os.Open(f)
 		if err != nil {
 			return err
 		}
+
+		defer file.Close()
 
 		buf := new(bytes.Buffer)
 		if _, err := buf.ReadFrom(file); err != nil {
 			return err
 		}
 
-		file.Close()
+		child.Debug("read in file")
 
-		// Extract source and save metadata
 		src := source.Source{Body: buf.Bytes(), RendersHighlight: s.Config.CodeHighlight}
 
 		md, err := src.ExtractMetadata()
@@ -53,10 +56,14 @@ func extractExtras(s *state.State) error {
 			return err
 		}
 
+		child.Debug("extracted metadata", slog.Any("metadata", md))
+
 		src.RendersTOC = md.TOC
 
 		// Don't proceed if file is draft
 		if md.Draft {
+			child.Debug("skipping: file is draft")
+
 			continue
 		}
 
@@ -66,11 +73,15 @@ func extractExtras(s *state.State) error {
 			return err
 		}
 
+		child.Debug("extracted html")
+
 		// Extract wiki backlinks (blinks) and image links (internalLinks)
 		links, err := src.ExtractLinks()
 		if err != nil {
 			return err
 		}
+
+		child.Debug("extracted links", slog.Any("links", links))
 
 		// Resolve basic vars
 		path := filepath.Dir(f)
@@ -99,6 +110,8 @@ func extractExtras(s *state.State) error {
 
 			s.Assets[ref] = true
 		}
+
+		child.Debug("updated assets with internal links paths", slog.Any("assets", s.Assets))
 
 		// Update assets and wikilinks from backlinks
 		for _, v := range links.BackLinks {
@@ -130,6 +143,8 @@ func extractExtras(s *state.State) error {
 			s.Entries[ref] = linkedEntry
 		}
 
+		child.Debug("updated assets and wiklinks from backlinks")
+
 		// Grab tags count and tags listing
 		// We process the final tags later - this is
 		// for the tags page
@@ -143,13 +158,19 @@ func extractExtras(s *state.State) error {
 				IsDir:       isDir,
 			})
 		}
+
+		child.Debug("updated tags", slog.Any("tagsCount", tagsCount), slog.Any("tagsListing", tagsListing))
 	}
+
+	logger.Debug("proceeding to second loop")
 
 	// Second loop for related links
 	//
 	// NOTE: Entries that share tags are related
 	// Hence dependent on tags listing (tl)
 	for _, f := range s.Files {
+		child := logger.With(slog.String("filepath", f), slog.String("context", "extracting extras"))
+
 		entry := s.Entries[f]
 		if entry.Metadata.Draft || len(entry.Metadata.Tags) == 0 {
 			continue
@@ -178,6 +199,8 @@ func extractExtras(s *state.State) error {
 
 		entry.Relatedlinks = relatedListings
 
+		child.Debug("extracted related links", slog.Any("relatedlinks", relatedListings))
+
 		// Update entry
 		s.Entries[f] = entry
 	}
@@ -197,6 +220,8 @@ func extractExtras(s *state.State) error {
 		tags = append(tags, tag.Tag{Name: k, Count: tagsCount[k], Links: tagsListing[k]})
 	}
 	s.Tags = append(s.Tags, tags...)
+
+	logger.Debug("extracted tags", slog.Any("tags", s.Tags))
 
 	return nil
 }

@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"html/template"
+	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -79,13 +80,17 @@ func render(i *renderInput) error {
 }
 
 // Render all files, including tags page, to html.
-func RenderAll(ctx context.Context, s *state.State) error {
+func Render(ctx context.Context, s *state.State, logger *slog.Logger) error {
 	var err error
 
 	eg, _ := errgroup.WithContext(ctx)
 
 	for _, f := range s.Files {
 		f := f
+
+		child := logger.With(slog.String("filepath", f), slog.String("context", "templating"))
+
+		child.Debug("submitting goroutine")
 
 		eg.Go(func() error {
 			// Don't render drafts or skipped files
@@ -170,6 +175,8 @@ func RenderAll(ctx context.Context, s *state.State) error {
 		return err
 	}
 
+	logger.Debug("finished rendering all files")
+
 	// Render tags page
 	if err := render(&renderInput{
 		template:     s.Templates,
@@ -184,6 +191,8 @@ func RenderAll(ctx context.Context, s *state.State) error {
 	}); err != nil {
 		return err
 	}
+
+	logger.Debug("finished rendering tags page")
 
 	return nil
 }

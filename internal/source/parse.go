@@ -116,10 +116,10 @@ func (s *Source) ToHTML() ([]byte, error) {
 
 // Parse b to find all other links within the document.
 func (s *Source) ExtractLinks() (*Links, error) {
-	// il: internal links
-	var il []string
-	// bl: back links
-	var bl []string
+	// internalLinks: internal links
+	var internalLinks []string
+	// backlinks: back links
+	var backlinks []string
 
 	r := text.NewReader(s.Body)
 	wikiLinkParser := wikilink.Parser{}
@@ -155,10 +155,10 @@ func (s *Source) ExtractLinks() (*Links, error) {
 		switch n := n.(type) {
 		case *ast.Image:
 			dest := string(n.Destination)
-			il = append(il, dest)
+			internalLinks = append(internalLinks, dest)
 		case *wikilink.Node:
 			target := string(n.Target)
-			bl = append(bl, target)
+			backlinks = append(backlinks, target)
 		default:
 			return ast.WalkContinue, nil
 		}
@@ -171,5 +171,5 @@ func (s *Source) ExtractLinks() (*Links, error) {
 		return nil, fmt.Errorf("error extracting internal links: %w", err)
 	}
 
-	return &Links{BackLinks: bl, InternalLinks: il}, nil
+	return &Links{BackLinks: backlinks, InternalLinks: internalLinks}, nil
 }

@@ -14,7 +14,9 @@ package main
 
 import (
 	"embed"
-	"log"
+	"fmt"
+	"log/slog"
+	"os"
 
 	"github.com/mstcl/pher/internal/cli"
 )
@@ -23,8 +25,13 @@ import (
 var fs embed.FS
 
 func main() {
+	logger := slog.Default()
+
 	cli.Templates = fs
+
 	if err := cli.Parse(); err != nil {
-		log.Fatal(err)
+		logger.Error(fmt.Sprintf("%v", err))
+
+		os.Exit(1)
 	}
 }

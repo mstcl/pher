@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -45,11 +46,15 @@ func removeFiles(files []string) error {
 
 // Move extra files like assets (images, fonts, css) over to output, preserving
 // the file structure.
-func syncAssets(ctx context.Context, s *state.State) error {
+func syncAssets(ctx context.Context, s *state.State, logger *slog.Logger) error {
 	eg, _ := errgroup.WithContext(ctx)
 
 	for f := range s.Assets {
 		f := f
+
+		child := logger.With(slog.String("filepath", f), slog.String("context", "copying asset"))
+
+		child.Debug("submitting goroutine")
 
 		eg.Go(func() error {
 			// want our assets to go from inDir/a/b/c/image.png -> outDir/a/b/c/image.png

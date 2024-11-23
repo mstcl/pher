@@ -2,6 +2,7 @@ package cli
 
 import (
 	"html/template"
+	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -21,7 +22,7 @@ import (
 //
 // * skip: bool map of files that should not be rendered (because its parents
 // is displaying a log)
-func makeFileListing(s *state.State) error {
+func makeFileListing(s *state.State, logger *slog.Logger) error {
 	// Initialize missing map
 	s.Missing = make(map[string]bool)
 
@@ -32,10 +33,14 @@ func makeFileListing(s *state.State) error {
 
 	files = append(files, s.InDir)
 
+	logger.Debug("found files to process listing", slog.Any("files", files))
+
 	// Go through everything that aren't files
 	// Glob those directories for both files and directories
 	// These are PARENTS with listings
 	for _, f := range files {
+		child := logger.With(slog.String("filepath", f), slog.String("context", "file listing"))
+
 		// Stat files/directories
 		info, err := os.Stat(f)
 		if err != nil {
@@ -53,7 +58,12 @@ func makeFileListing(s *state.State) error {
 			return err
 		}
 
-		if err := makeFileListingHelper(s, &helperInput{parentDir: f, files: children}); err != nil {
+		child.Debug("found children files", slog.Any("files", children))
+
+		if err := makeFileListingHelper(s, &helperInput{
+			parentDir: f,
+			files:     children,
+		}, logger); err != nil {
 			return err
 		}
 	}
@@ -101,6 +111,7 @@ type helperInput struct {
 func makeFileListingHelper(
 	s *state.State,
 	i *helperInput,
+	logger *slog.Logger,
 ) error {
 	// Whether to render children
 	// Use source file as key for consistency
@@ -108,6 +119,8 @@ func makeFileListingHelper(
 	isLog := s.Entries[dirIndex].Metadata.Layout == "log"
 
 	for _, f := range i.files {
+		child := logger.With(slog.String("filepath", f), slog.String("context", "child listing"))
+
 		// Stat files/directories
 		info, err := os.Stat(f)
 		if err != nil {
@@ -118,16 +131,22 @@ func makeFileListingHelper(
 
 		// Skip hidden files
 		if rel, _ := filepath.Rel(s.InDir, f); rel[0] == 46 {
+			child.Debug("skipped hidden file")
+
 			continue
 		}
 
 		// Skip non-markdon files
 		if !IsDir && filepath.Ext(f) != ".md" {
+			child.Debug("skipped non markdown file")
+
 			continue
 		}
 
 		// Skip index files, unlisted ones
 		if convert.FileBase(f) == "index" || s.Entries[f].Metadata.Unlisted {
+			child.Debug("skip index files and unlisted files")
+
 			continue
 		}
 
@@ -136,6 +155,8 @@ func makeFileListingHelper(
 
 		// Throw error if parent's view is Log but child is subdirectory
 		if IsDir && isLog {
+			child.Error("found a directory in log parent - this is unexpected")
+
 			return err
 		}
 
@@ -146,6 +167,8 @@ func makeFileListingHelper(
 		}
 
 		if IsDir && !entryPresent {
+			child.Debug("empty directory found - skipping")
+
 			continue
 		}
 
@@ -157,6 +180,8 @@ func makeFileListingHelper(
 			}
 
 			if !indexExists {
+				child.Debug("index doesn't exist, adding to missing state")
+
 				s.Missing[f+"/index.md"] = true
 			}
 		}

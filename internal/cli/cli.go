@@ -24,7 +24,7 @@ import (
 
 const (
 	templateDir = "web/template"
-	version     = "v2.1.1"
+	version     = "v2.2.0"
 )
 
 var (

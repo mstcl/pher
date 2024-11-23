@@ -87,7 +87,7 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 		path := filepath.Dir(f)
 		base := convert.FileBase(f)
 		title := convert.Title(md.Title, base)
-		href := convert.Href(f, s.InDir, true)
+		href := convert.Href(f, s.InDir, false)
 		isDir := base == "index"
 
 		if s.Config.IsExt {
@@ -190,7 +190,7 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 		// Remove self from l to ensure uniqueness
 		for _, l := range listings {
 			filename := strings.TrimSuffix(l.Href, filepath.Ext(l.Href))
-			if s.InDir+filename+".md" == f {
+			if filepath.Join(s.InDir, filename) == strings.TrimSuffix(f, ".md") {
 				continue
 			}
 

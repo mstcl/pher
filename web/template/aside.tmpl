@@ -1,4 +1,5 @@
 {{define "aside"}}
+{{$p := .Path}}
 {{- if ne .Layout "log"}}
   <aside class="links">
   {{- if .Listing}}
@@ -42,7 +43,7 @@
 	  {{- range .Backlinks}}
 		<li>
 		  <div class="links-info">
-		  <a class="links-title" href="{{.Href}}">{{.Title}}
+		  <a class="links-title" href="{{$p}}/{{.Href}}">{{.Title}}
 		  {{- if .Description}}
 		  <span class="links-description">— {{.Description}}</span>
 		  {{- end}}
@@ -60,7 +61,7 @@
 	  {{- range .Relatedlinks}}
 		<li>
 		  <div class="links-info">
-		  <a class="links-title" href="{{.Href}}">{{.Title}}{{- if .IsDir }} /{{- end}}
+		  <a class="links-title" href="{{$p}}/{{.Href}}">{{.Title}}{{- if .IsDir }} /{{- end}}
 		  {{- if .Description}}
 		  <span class="links-description">— {{.Description}}</span>
 		  {{- end}}
@@ -77,7 +78,7 @@
 	  <ul class="tags-listing">
 	  {{- range .TagsListing}}
 		<li>
-		  <a class="tags-title" href="/tags{{$.Ext}}#{{.Name}}">{{.Name}}
+		  <a class="tags-title" href="{{$p}}/tags{{$.Ext}}#{{.Name}}">{{.Name}}
 		  <span>{{.Count}}</span>
 		  </a>
 		  </div>

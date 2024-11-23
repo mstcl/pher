@@ -53,6 +53,7 @@ rootCrumb: "~" # render root link in navbar with this string.
 codeHighlight: true # render code with syntax highlighting.
 keepExtension: true # render hrefs with .html extension
 head: "" # String to inject inside HTML <head>
+path: "/" # the subpath of your wiki (e.g. if hosted at example.org/wiki then it's /wiki)
 
 # footer links, leave empty e.g. `footer: []` to disable
 footer:

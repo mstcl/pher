@@ -1,9 +1,10 @@
 {{define "header"}}
+{{$p := .Path}}
   <header class="article-header">
 	<nav>
-	<a href="/">{{.RootCrumb}} </a>
+	<a href="{{.Path}}">{{.RootCrumb}} </a>
 	{{- range .Crumbs}}
-	<a href="/{{.Href}}"> {{.Title}} </a>
+	<a href="{{$p}}/{{.Href}}"> {{.Title}} </a>
 	{{- end}}
 	{{- if ne .Filename "index" }}
 	<span>{{.Filename}}</span>

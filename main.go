@@ -17,7 +17,9 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"time"
 
+	"github.com/lmittmann/tint"
 	"github.com/mstcl/pher/v2/internal/cli"
 )
 
@@ -25,7 +27,9 @@ import (
 var fs embed.FS
 
 func main() {
-	logger := slog.Default()
+	logger := slog.New(tint.NewHandler(os.Stderr, &tint.Options{
+		TimeFormat: time.Kitchen,
+	}))
 
 	cli.Templates = fs
 

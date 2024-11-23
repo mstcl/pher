@@ -16,6 +16,7 @@ type Config struct {
 	AuthorName    string       `yaml:"authorName"`
 	AuthorEmail   string       `yaml:"authorEmail"`
 	RootCrumb     string       `yaml:"rootCrumb"`
+	Path          string       `yaml:"path"`
 	Head          string       `yaml:"head"`
 	Footer        []FooterLink `yaml:"footer"`
 	CodeHighlight bool         `yaml:"codeHighlight"`
@@ -32,6 +33,7 @@ func DefaultConfig() Config {
 		CodeHighlight: true,
 		IsExt:         true,
 		RootCrumb:     "~",
+		Path:          "/",
 	}
 }
 

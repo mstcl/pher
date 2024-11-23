@@ -41,6 +41,7 @@ type data struct {
 	MachineDateUpdated                       string
 	Ext                                      string
 	OutFilename                              string
+	Path                                     string
 	Tags                                     []string
 	TagsListing                              []tag.Tag
 	Footer                                   []config.FooterLink
@@ -130,6 +131,7 @@ func Render(ctx context.Context, s *state.State, logger *slog.Logger) error {
 				Footer:       s.Config.Footer,
 				WikiTitle:    s.Config.Title,
 				Url:          s.Config.Url + entry.Href,
+				Path:         s.Config.Path,
 				Crumbs:       crumbs,
 			}
 			entryData.Title = convert.Title(entry.Metadata.Title, entryData.Filename)
@@ -187,6 +189,7 @@ func Render(ctx context.Context, s *state.State, logger *slog.Logger) error {
 			Footer:      s.Config.Footer,
 			TagsListing: s.Tags,
 			OutFilename: s.OutDir + "/tags.html",
+			Path:        s.Config.Path,
 		},
 	}); err != nil {
 		return err

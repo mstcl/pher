@@ -16,6 +16,7 @@ func Inspect(n ast.Node, src []byte) (*TOC, error) {
 	appendChild := func(n *Item) *Item {
 		child := new(Item)
 		n.Items = append(n.Items, child)
+
 		return child
 	}
 
@@ -25,6 +26,7 @@ func Inspect(n ast.Node, src []byte) (*TOC, error) {
 		if len(n.Items) > 0 {
 			return n.Items[len(n.Items)-1]
 		}
+
 		return appendChild(n)
 	}
 
@@ -40,6 +42,7 @@ func Inspect(n ast.Node, src []byte) (*TOC, error) {
 		if !ok {
 			return ast.WalkContinue, nil
 		}
+
 		if 2 > 0 && heading.Level < 2 {
 			return ast.WalkSkipChildren, nil
 		}
@@ -63,6 +66,7 @@ func Inspect(n ast.Node, src []byte) (*TOC, error) {
 
 		parent := stack[len(stack)-1]
 		target := lastChild(parent)
+
 		if len(target.Title) > 0 || len(target.Items) > 0 {
 			target = appendChild(parent)
 		}

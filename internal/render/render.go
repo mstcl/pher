@@ -3,6 +3,7 @@ package render
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"html/template"
 	"os"
@@ -10,25 +11,11 @@ import (
 
 	"github.com/mstcl/pher/internal/config"
 	"github.com/mstcl/pher/internal/convert"
-	"github.com/mstcl/pher/internal/entry"
 	"github.com/mstcl/pher/internal/listing"
-	"github.com/mstcl/pher/internal/parse"
+	"github.com/mstcl/pher/internal/state"
 	"github.com/mstcl/pher/internal/tag"
+	"golang.org/x/sync/errgroup"
 )
-
-type RenderDeps struct {
-	Config    *config.Config
-	Templates *template.Template
-	Entries   map[string]entry.Entry
-	Skip      map[string]bool
-	Listings  map[string][]listing.Listing
-	InDir     string
-	OutDir    string
-	Files     []string
-	Tags      []tag.Tag
-	Metadata  parse.Metadata
-	DryRun    bool
-}
 
 // All fields used in the html templates.
 //
@@ -37,7 +24,7 @@ type RenderDeps struct {
 // * Description: body description
 //
 // * Filename: has no extension. Used for navigation crumb.
-type RenderData struct {
+type data struct {
 	Body                                     template.HTML
 	Head                                     template.HTML
 	WikiTitle                                string
@@ -61,109 +48,142 @@ type RenderData struct {
 	ShowHeader                               bool
 }
 
+type renderInput struct {
+	template     *template.Template
+	data         *data
+	templateName string
+	dryRun       bool
+}
+
 // Template html with data d.
-func (rd *RenderData) Render(t *template.Template, dryRun bool, templateName string) error {
+func render(i *renderInput) error {
 	// Template the current file
 	w := new(bytes.Buffer)
-	if err := t.ExecuteTemplate(w, templateName, rd); err != nil {
+	if err := i.template.ExecuteTemplate(w, i.templateName, i.data); err != nil {
 		return err
 	}
 
 	// Ensure output directory exists
-	if err := os.MkdirAll(filepath.Dir(rd.OutFilename), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(i.data.OutFilename), 0o755); err != nil {
 		return fmt.Errorf("error mkdir: %w", err)
 	}
 
 	// Save output html to disk
-	if !dryRun {
-		if err := os.WriteFile(rd.OutFilename, w.Bytes(), 0o644); err != nil {
+	if !i.dryRun {
+		if err := os.WriteFile(i.data.OutFilename, w.Bytes(), 0o644); err != nil {
 			return fmt.Errorf("error writing entry to disk: %w", err)
 		}
 	}
+
 	return nil
 }
 
 // Render all files, including tags page, to html.
-func (d *RenderDeps) RenderAll() error {
-	for _, f := range d.Files {
-		// Don't render drafts or skipped files
-		entry := d.Entries[f]
-		if entry.Metadata.Draft || d.Skip[f] {
-			continue
-		}
+func RenderAll(ctx context.Context, s *state.State) error {
+	var err error
 
-		// Get navigation crumbs
-		crumbsTitle, crumbsLink := convert.NavCrumbs(f, d.InDir, d.Config.IsExt)
+	eg, _ := errgroup.WithContext(ctx)
 
-		// Populate crumbs
-		crumbs := []listing.Listing{}
-		for i, t := range crumbsTitle {
-			crumbs = append(crumbs, listing.Listing{Href: crumbsLink[i], Title: t})
-		}
+	for _, f := range s.Files {
+		f := f
 
-		// The output path outDir/{a/b/c/file}.html (part in curly brackets is the href)
-		outPath := d.OutDir + convert.Href(f, d.InDir, true) + ".html"
+		eg.Go(func() error {
+			// Don't render drafts or skipped files
+			entry := s.Entries[f]
+			if entry.Metadata.Draft || s.Skip[f] {
+				return nil
+			}
 
-		// Construct rendering data (rd) from config, entry data, listing, nav
-		// crumbs, etc.
-		rd := RenderData{
-			OutFilename:  outPath,
-			Listing:      d.Listings[f],
-			Filename:     convert.FileBase(f),
-			Description:  entry.Metadata.Description,
-			Tags:         entry.Metadata.Tags,
-			TOC:          entry.Metadata.TOC,
-			ShowHeader:   entry.Metadata.ShowHeader,
-			Layout:       entry.Metadata.Layout,
-			Backlinks:    entry.Backlinks,
-			Relatedlinks: entry.Relatedlinks,
-			Body:         template.HTML(entry.Body),
-			Head:         template.HTML(d.Config.Head),
-			RootCrumb:    d.Config.RootCrumb,
-			Footer:       d.Config.Footer,
-			WikiTitle:    d.Config.Title,
-			Url:          d.Config.Url + entry.Href,
-			Crumbs:       crumbs,
-		}
-		rd.Title = convert.Title(entry.Metadata.Title, rd.Filename)
-		if d.Config.IsExt {
-			rd.Ext = ".html"
-		} else {
-			rd.Ext = ""
-		}
+			// Get navigation crumbs
+			crumbsTitle, crumbsLink := convert.NavCrumbs(f, s.InDir, s.Config.IsExt)
 
-		// Use date only if given
-		var err error
-		rd.Date, rd.MachineDate, err = convert.Date(entry.Metadata.Date)
-		if err != nil {
-			return err
-		}
+			// Populate navigation crumbs
+			crumbs := []listing.Listing{}
+			for i, t := range crumbsTitle {
+				crumbs = append(crumbs, listing.Listing{Href: crumbsLink[i], Title: t})
+			}
 
-		// Use data updated only if given
-		rd.DateUpdated, rd.MachineDateUpdated, err = convert.Date(entry.Metadata.DateUpdated)
-		if err != nil {
-			return err
-		}
+			// The output path outDir/{a/b/c/file}.html (part in curly brackets is the href)
+			outPath := s.OutDir + convert.Href(f, s.InDir, true) + ".html"
 
-		// Add tags only to root index
-		if f == d.InDir+"/index.md" {
-			rd.TagsListing = d.Tags
-		}
+			// Construct rendering data (entryData) from config, entry data, listing, nav
+			// crumbs, etc.
+			entryData := data{
+				OutFilename:  outPath,
+				Listing:      s.Listings[f],
+				Filename:     convert.FileBase(f),
+				Description:  entry.Metadata.Description,
+				Tags:         entry.Metadata.Tags,
+				TOC:          entry.Metadata.TOC,
+				ShowHeader:   entry.Metadata.ShowHeader,
+				Layout:       entry.Metadata.Layout,
+				Backlinks:    entry.Backlinks,
+				Relatedlinks: entry.Relatedlinks,
+				Body:         template.HTML(entry.Body),
+				Head:         template.HTML(s.Config.Head),
+				RootCrumb:    s.Config.RootCrumb,
+				Footer:       s.Config.Footer,
+				WikiTitle:    s.Config.Title,
+				Url:          s.Config.Url + entry.Href,
+				Crumbs:       crumbs,
+			}
+			entryData.Title = convert.Title(entry.Metadata.Title, entryData.Filename)
 
-		// Render
-		if err = rd.Render(d.Templates, d.DryRun, "index"); err != nil {
-			return err
-		}
+			if s.Config.IsExt {
+				entryData.Ext = ".html"
+			} else {
+				entryData.Ext = ""
+			}
+
+			// Use date only if given
+			entryData.Date, entryData.MachineDate, err = convert.Date(entry.Metadata.Date)
+			if err != nil {
+				return err
+			}
+
+			// Use data updated only if given
+			entryData.DateUpdated, entryData.MachineDateUpdated, err = convert.Date(entry.Metadata.DateUpdated)
+			if err != nil {
+				return err
+			}
+
+			// Add tags only to root index
+			if f == s.InDir+"/index.md" {
+				entryData.TagsListing = s.Tags
+			}
+
+			// Render
+			if err = render(&renderInput{
+				template:     s.Templates,
+				dryRun:       s.DryRun,
+				templateName: "index",
+				data:         &entryData,
+			}); err != nil {
+				return err
+			}
+
+			return nil
+		})
 	}
-	// Construct tags data (td) to render tags page
-	td := RenderData{
-		RootCrumb:   d.Config.RootCrumb,
-		Footer:      d.Config.Footer,
-		TagsListing: d.Tags,
-		OutFilename: d.OutDir + "/tags.html",
-	}
-	if err := td.Render(d.Templates, d.DryRun, "tags"); err != nil {
+
+	if err := eg.Wait(); err != nil {
 		return err
 	}
+
+	// Render tags page
+	if err := render(&renderInput{
+		template:     s.Templates,
+		dryRun:       s.DryRun,
+		templateName: "tags",
+		data: &data{
+			RootCrumb:   s.Config.RootCrumb,
+			Footer:      s.Config.Footer,
+			TagsListing: s.Tags,
+			OutFilename: s.OutDir + "/tags.html",
+		},
+	}); err != nil {
+		return err
+	}
+
 	return nil
 }

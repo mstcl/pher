@@ -20,6 +20,7 @@ func Href(f string, inDir string, prefixSlash bool) string {
 	if prefixSlash {
 		href = "/" + href
 	}
+
 	return href
 }
 
@@ -29,10 +30,12 @@ func Date(date string) (string, string, error) {
 	if len(date) == 0 {
 		return "", "", nil
 	}
+
 	dateTime, err := time.Parse("2006-01-02", date)
 	if err != nil {
 		return "", "", err
 	}
+
 	return dateTime.Format("02 Jan 2006"), dateTime.Format(time.RFC3339), nil
 }
 
@@ -50,17 +53,21 @@ func NavCrumbs(f string, inDir string, isExt bool) ([]string, []string) {
 
 	// make the crumbsLink
 	crumbsLink := []string{}
+
 	for i := range crumbsTitle {
 		// don't process last item
 		if i == len(crumbsTitle)-1 {
 			break
 		}
+
 		cl := strings.Join(crumbsTitle[:i+1], "/")
 		if isExt {
 			cl += "/index.html"
 		}
+
 		crumbsLink = append(crumbsLink, cl)
 	}
+
 	return crumbsTitle[:len(crumbsTitle)-1], crumbsLink
 }
 
@@ -72,6 +79,7 @@ func Title(metadataTitle string, filename string) string {
 	} else {
 		title = filename
 	}
+
 	return title
 }
 

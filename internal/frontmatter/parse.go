@@ -61,6 +61,7 @@ func (p *Parser) Open(_ ast.Node, reader text.Reader, _ parser.Context) (ast.Nod
 	}
 
 	line, seg := reader.PeekLine()
+
 	delim, delimCount := lineDelim(line)
 	if delim == 0 {
 		return nil, parser.NoChildren
@@ -97,7 +98,9 @@ func (p *Parser) Continue(node ast.Node, reader text.Reader, _ parser.Context) p
 			return parser.Close
 		}
 	}
+
 	n.Segment.Stop = seg.Stop
+
 	return parser.Continue | parser.NoChildren
 }
 
@@ -178,6 +181,7 @@ func lineDelim(line []byte) (delim byte, count int) {
 	// to handle both, CRLF and just LF.
 	line = bytes.TrimSuffix(line, _lf)
 	line = bytes.TrimSuffix(line, _cr)
+
 	if len(line) < 3 {
 		return 0, 0
 	}
@@ -188,5 +192,6 @@ func lineDelim(line []byte) (delim byte, count int) {
 			return 0, 0
 		}
 	}
+
 	return delim, len(line)
 }

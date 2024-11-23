@@ -74,12 +74,15 @@ type XmlFeed interface {
 // returns an error if xml marshaling fails
 func ToXML(feed XmlFeed) (string, error) {
 	x := feed.FeedXml()
+
 	data, err := xml.MarshalIndent(x, "", "  ")
 	if err != nil {
 		return "", err
 	}
+
 	// strip empty line from default xml header
 	s := xml.Header[:len(xml.Header)-1] + string(data)
+
 	return s, nil
 }
 
@@ -91,14 +94,17 @@ func WriteXML(feed XmlFeed, w io.Writer) error {
 	if _, err := w.Write([]byte(xml.Header[:len(xml.Header)-1])); err != nil {
 		return err
 	}
+
 	e := xml.NewEncoder(w)
 	e.Indent("", "  ")
+
 	return e.Encode(x)
 }
 
 // // creates an Atom representation of this feed
 func (f *Feed) ToAtom() (string, error) {
 	a := &Atom{f}
+
 	return ToXML(a)
 }
 
@@ -199,29 +205,36 @@ func anyTimeFormat(format string, times ...time.Time) string {
 			return t.Format(format)
 		}
 	}
+
 	return ""
 }
 
 func newAtomEntry(i *Item) *AtomEntry {
 	id := i.Id
+
 	link := i.Link
 	if link == nil {
 		link = &Link{}
 	}
+
 	if len(id) == 0 {
 		// if there's no id set, try to create one, either from data or just a uuid
 		if len(link.Href) > 0 && (!i.Created.IsZero() || !i.Updated.IsZero()) {
 			dateStr := anyTimeFormat("2006-01-02", i.Updated, i.Created)
 			host, path := link.Href, "/invalid.html"
+
 			if url, err := url.Parse(link.Href); err == nil {
 				host, path = url.Host, url.Path
 			}
+
 			id = fmt.Sprintf("tag:%s,%s:%s", host, dateStr, path)
 		} else {
 			id = "urn:uuid:" + NewUUID().String()
 		}
 	}
+
 	var name, email string
+
 	if i.Author != nil {
 		name, email = i.Author.Name, i.Author.Email
 	}
@@ -230,6 +243,7 @@ func newAtomEntry(i *Item) *AtomEntry {
 	if link_rel == "" {
 		link_rel = "alternate"
 	}
+
 	x := &AtomEntry{
 		Title:   i.Title,
 		Links:   []AtomLink{{Href: link.Href, Rel: link_rel, Type: link.Type}},
@@ -258,6 +272,7 @@ func newAtomEntry(i *Item) *AtomEntry {
 	if len(i.Categories) > 0 {
 		x.Categories = i.Categories
 	}
+
 	return x
 }
 

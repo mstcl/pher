@@ -52,6 +52,7 @@ func (p *Parser) Trigger() []byte {
 //	[[target#fragment]]
 func (p *Parser) Parse(_ ast.Node, block text.Reader, _ parser.Context) ast.Node {
 	line, seg := block.PeekLine()
+
 	stop := bytes.Index(line, _close)
 	if stop < 0 {
 		return nil // must close on the same line
@@ -87,5 +88,6 @@ func (p *Parser) Parse(_ ast.Node, block text.Reader, _ parser.Context) ast.Node
 
 	n.AppendChild(n, ast.NewTextSegment(seg))
 	block.Advance(stop + 2)
+
 	return n
 }

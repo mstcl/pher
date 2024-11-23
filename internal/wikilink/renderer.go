@@ -76,6 +76,7 @@ func (r *Renderer) Render(w util.BufWriter, src []byte, node ast.Node, entering 
 	}
 
 	r.exit(w, n)
+
 	return ast.WalkContinue, nil
 }
 
@@ -84,6 +85,7 @@ func (r *Renderer) enter(w util.BufWriter, n *Node, src []byte) (ast.WalkStatus,
 	if err != nil {
 		return ast.WalkStop, fmt.Errorf("resolve %q: %w", n.Target, err)
 	}
+
 	if len(dest) == 0 {
 		return ast.WalkContinue, nil
 	}
@@ -91,9 +93,11 @@ func (r *Renderer) enter(w util.BufWriter, n *Node, src []byte) (ast.WalkStatus,
 	img := resolveAsImage(n)
 	if !img {
 		r.hasDest.Store(n, struct{}{})
+
 		_, _ = w.WriteString(`<a class="wikilink" href="`)
 		_, _ = w.Write(util.URLEscape(dest, true /* resolve references */))
 		_, _ = w.WriteString(`">`)
+
 		return ast.WalkContinue, nil
 	}
 
@@ -110,7 +114,9 @@ func (r *Renderer) enter(w util.BufWriter, n *Node, src []byte) (ast.WalkStatus,
 			_, _ = w.Write(util.EscapeHTML(label))
 		}
 	}
+
 	_, _ = w.WriteString(`">`)
+
 	return ast.WalkSkipChildren, nil
 }
 
@@ -127,6 +133,7 @@ func resolveAsImage(n *Node) bool {
 	}
 
 	filename := string(n.Target)
+
 	switch ext := filepath.Ext(filename); ext {
 	// Common image file types taken from
 	// https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Image_types

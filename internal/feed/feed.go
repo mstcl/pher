@@ -5,43 +5,36 @@ import (
 	"os"
 	"time"
 
-	"github.com/mstcl/pher/internal/config"
-	"github.com/mstcl/pher/internal/entry"
+	"github.com/mstcl/pher/internal/state"
 )
 
-type FeedDeps struct {
-	Config  *config.Config
-	Entries map[string]entry.Entry
-	InDir   string
-	OutDir  string
-	DryRun   bool
-}
-
-func (d *FeedDeps) ConstructFeed() (string, error) {
+func Construct(s *state.State) (string, error) {
 	now := time.Now()
-	author := &Author{Name: d.Config.AuthorName, Email: d.Config.AuthorEmail}
+	author := &Author{Name: s.Config.AuthorName, Email: s.Config.AuthorEmail}
 	feed := &Feed{
-		Title:       d.Config.Title,
-		Link:        &Link{Href: d.Config.Url},
-		Description: d.Config.Description,
+		Title:       s.Config.Title,
+		Link:        &Link{Href: s.Config.Url},
+		Description: s.Config.Description,
 		Author:      author,
 		Created:     now,
 	}
 
 	feed.Items = []*Item{}
 
-	for _, v := range d.Entries {
+	for _, v := range s.Entries {
 		md := v.Metadata
 		if len(md.Date) == 0 {
 			continue
 		}
+
 		t, err := time.Parse("2006-01-02", md.Date)
 		if err != nil {
 			return "", fmt.Errorf("parse time: %w", err)
 		}
+
 		entry := &Item{
 			Title:       md.Title,
-			Link:        &Link{Href: d.Config.Url + v.Href},
+			Link:        &Link{Href: s.Config.Url + v.Href},
 			Description: md.Description,
 			Author:      author,
 			Created:     t,
@@ -59,13 +52,16 @@ func (d *FeedDeps) ConstructFeed() (string, error) {
 	return atom, nil
 }
 
-func (d *FeedDeps) SaveFeed(atom string) error {
-	if d.DryRun {
+func Write(s *state.State, atom string) error {
+	if s.DryRun {
 		return nil
 	}
+
 	b := []byte(atom)
-	if err := os.WriteFile(d.OutDir+"/feed.xml", b, 0o644); err != nil {
+
+	if err := os.WriteFile(s.OutDir+"/feed.xml", b, 0o644); err != nil {
 		return fmt.Errorf("writing article: %w", err)
 	}
+
 	return nil
 }

@@ -42,6 +42,7 @@ func Read(f string) (*Config, error) {
 	}
 
 	defer file.Close()
+
 	return handleConfig(file)
 }
 
@@ -55,5 +56,6 @@ func handleConfig(file io.Reader) (*Config, error) {
 	if err := yaml.Unmarshal(buf.Bytes(), &cfg); err != nil {
 		return nil, err
 	}
+
 	return &cfg, nil
 }

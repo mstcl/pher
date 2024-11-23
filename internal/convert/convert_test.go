@@ -63,6 +63,7 @@ func TestNavCrumbs(t *testing.T) {
 			if !slices.Equal(crumbs, tt.crumbs) {
 				t.Errorf("got %s, want %s", crumbs, tt.crumbs)
 			}
+
 			if !slices.Equal(crumbLinks, tt.crumbLinks) {
 				t.Errorf("got %s, want %s", crumbLinks, tt.crumbLinks)
 			}

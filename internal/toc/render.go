@@ -43,6 +43,7 @@ func (r *ListRenderer) Render(toc *TOC) ast.Node {
 	if toc == nil {
 		return nil
 	}
+
 	return r.renderItems(toc.Items)
 }
 
@@ -57,11 +58,13 @@ func (r *ListRenderer) renderItems(items Items) ast.Node {
 	}
 
 	list := ast.NewList(mkr)
-	tocHead := ast.NewString([]byte("contents"))
+	tocHead := ast.NewString([]byte("TOC"))
 	list.AppendChild(list, tocHead)
+
 	for _, item := range items {
 		list.AppendChild(list, r.renderItem(item))
 	}
+
 	return list
 }
 
@@ -71,9 +74,12 @@ func (r *ListRenderer) renderItem(n *Item) ast.Node {
 	if t := n.Title; len(t) > 0 {
 		title := ast.NewString(t)
 		title.SetRaw(true)
+
 		if len(n.ID) > 0 {
 			link := ast.NewLink()
+
 			link.Destination = append([]byte("#"), n.ID...)
+
 			link.AppendChild(link, title)
 			item.AppendChild(item, link)
 		} else {

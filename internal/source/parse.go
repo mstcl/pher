@@ -1,13 +1,15 @@
-// Parses markdown to html
-package parse
+// Handle markdown source and helper methods
+package source
 
 import (
 	"bytes"
 	"fmt"
 
 	"github.com/mstcl/pher/internal/frontmatter"
+	"github.com/mstcl/pher/internal/metadata"
 	"github.com/mstcl/pher/internal/toc"
 	"github.com/mstcl/pher/internal/wikilink"
+	"github.com/mstcl/pher/internal/customanchor"
 	"github.com/yuin/goldmark"
 	highlighting "github.com/yuin/goldmark-highlighting/v2"
 	"github.com/yuin/goldmark/ast"
@@ -19,107 +21,58 @@ import (
 	"go.abhg.dev/goldmark/anchor"
 )
 
+type Links struct {
+	BackLinks     []string
+	InternalLinks []string
+}
+
 type Source struct {
 	Body             []byte
 	RendersTOC       bool
 	RendersHighlight bool
 }
 
-// Allowed frontmatter in unmarshalled YAML.
-//
-// # Default values
-//
-// * Pinned: false
-//
-// * Unlisted: false
-//
-// * ShowHeader: true
-//
-// * Layout: "list"
-//
-// * Draft: false
-//
-// * TOC: false
-type Metadata struct {
-	Title       string   `yaml:"title"`
-	Description string   `yaml:"description"`
-	Date        string   `yaml:"date"`
-	DateUpdated string   `yaml:"dateUpdated"`
-	Layout      string   `yaml:"layout"`
-	Tags        []string `yaml:"tags"`
-	Pinned      bool     `yaml:"pinned"`
-	Unlisted    bool     `yaml:"unlisted"`
-	Draft       bool     `yaml:"draft"`
-	TOC         bool     `yaml:"toc"`
-	ShowHeader  bool     `yaml:"showHeader"`
-}
+// Parse metadata (frontmatter) from source b.
+func (s *Source) ExtractMetadata() (*metadata.Metadata, error) {
+	r := goldmark.New(goldmark.WithExtensions(&frontmatter.Extender{}))
 
-func DefaultMetadata() Metadata {
-	return Metadata{
-		Pinned:     false,
-		Unlisted:   false,
-		ShowHeader: true,
-		Layout:     "list",
-		Draft:      false,
-		TOC:        false,
+	_, md, err := s.convert(r)
+	if err != nil {
+		return nil, fmt.Errorf("convert markdown: %w", err)
 	}
-}
 
-// Custom texter for heading anchors.
-type customTexter struct{}
-
-// Custom Texter function to hide anchor for level 1 headings.
-func (*customTexter) AnchorText(h *anchor.HeaderInfo) []byte {
-	if h.Level == 1 {
-		return nil
-	}
-	return []byte("#")
+	return md, nil
 }
 
 // Convert source b with renderer r to give html and Metadata.
-//
 // Requires r to have the fronmatter extension.
-func (s *Source) convert(r goldmark.Markdown) ([]byte, Metadata, error) {
+func (s *Source) convert(r goldmark.Markdown) ([]byte, *metadata.Metadata, error) {
 	w := new(bytes.Buffer)
 
 	// Get context
 	context := parser.NewContext()
 
 	if err := r.Convert(s.Body, w, parser.WithContext(context)); err != nil {
-		return nil,
-			Metadata{},
-			fmt.Errorf("converting to markdown: %w", err)
+		return nil, nil, fmt.Errorf("converting to markdown: %w", err)
 	}
 
-	md := DefaultMetadata()
+	md := metadata.Default()
 
 	// Decode frontmatter
 	d := frontmatter.Get(context)
 	if err := d.Decode(&md); err != nil {
-		return nil,
-			Metadata{},
-			fmt.Errorf("decoding frontmatter: %w", err)
+		return nil, nil, fmt.Errorf("decoding frontmatter: %w", err)
 	}
 
 	return w.Bytes(), md, nil
 }
 
-// Parse metadata (frontmatter) from source b.
-func (s *Source) ParseMetadata() (Metadata, error) {
-	r := goldmark.New(goldmark.WithExtensions(&frontmatter.Extender{}))
-	_, md, err := s.convert(r)
-	if err != nil {
-		return Metadata{}, fmt.Errorf("convert markdown: %w", err)
-	}
-	return md, nil
-}
-
 // Read in b and parse body.
 // Frontmatter is reprocessed to strip it.
-func (s *Source) ParseSource() ([]byte, error) {
+func (s *Source) ToHTML() ([]byte, error) {
 	ext := []goldmark.Extender{
 		&anchor.Extender{
-			Texter: &customTexter{},
+			Texter: &customanchor.Texter{},
 			Attributer: anchor.Attributes{
 				"class": "h-anchor",
 			},
@@ -139,16 +92,19 @@ func (s *Source) ParseSource() ([]byte, error) {
 	if s.RendersTOC {
 		ext = append(ext, &toc.Extender{})
 	}
+
 	if s.RendersHighlight {
 		ext = append(ext, highlighting.NewHighlighting(
 			highlighting.WithStyle("friendly"),
 		))
 	}
+
 	r := goldmark.New(
 		goldmark.WithExtensions(ext...),
 		goldmark.WithParserOptions(parser.WithAutoHeadingID()),
 		goldmark.WithRendererOptions(html.WithUnsafe()),
 	)
+
 	body, _, err := s.convert(r)
 	if err != nil {
 		return nil,
@@ -159,7 +115,7 @@ func (s *Source) ParseSource() ([]byte, error) {
 }
 
 // Parse b to find all other links within the document.
-func (s *Source) ParseInternalLinks() ([]string, []string, error) {
+func (s *Source) ExtractLinks() (*Links, error) {
 	// il: internal links
 	var il []string
 	// bl: back links
@@ -195,6 +151,7 @@ func (s *Source) ParseInternalLinks() ([]string, []string, error) {
 		if !entering {
 			return ast.WalkContinue, nil
 		}
+
 		switch n := n.(type) {
 		case *ast.Image:
 			dest := string(n.Destination)
@@ -205,11 +162,14 @@ func (s *Source) ParseInternalLinks() ([]string, []string, error) {
 		default:
 			return ast.WalkContinue, nil
 		}
+
 		return ast.WalkContinue, nil
 	}
+
 	err := ast.Walk(nodes, walker)
 	if err != nil {
-		return nil, nil, fmt.Errorf("error extracting internal links: %w", err)
+		return nil, fmt.Errorf("error extracting internal links: %w", err)
 	}
-	return bl, il, nil
+
+	return &Links{BackLinks: bl, InternalLinks: il}, nil
 }

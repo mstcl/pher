@@ -12,13 +12,11 @@ type UUID [16]byte
 // create a new uuid v4
 func NewUUID() *UUID {
 	u := &UUID{}
-	_, err := rand.Read(u[:16])
-	if err != nil {
-		panic(err)
-	}
+	_, _ = rand.Read(u[:16])
 
 	u[8] = (u[8] | 0x80) & 0xBf
 	u[6] = (u[6] | 0x40) & 0x4f
+
 	return u
 }
 

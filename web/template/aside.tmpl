@@ -60,7 +60,7 @@
 	  {{- range .Relatedlinks}}
 		<li>
 		  <div class="links-info">
-		  <a class="links-title" href="{{.Href}}">{{.Title}}
+		  <a class="links-title" href="{{.Href}}">{{.Title}}{{- if .IsDir }} /{{- end}}
 		  {{- if .Description}}
 		  <span class="links-description">— {{.Description}}</span>
 		  {{- end}}

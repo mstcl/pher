@@ -2,7 +2,7 @@ package entry
 
 import (
 	"github.com/mstcl/pher/internal/listing"
-	"github.com/mstcl/pher/internal/parse"
+	"github.com/mstcl/pher/internal/metadata"
 )
 
 // An entry's data, containing: the metadata, the html body, the backlinks
@@ -13,5 +13,5 @@ type Entry struct {
 	Backlinks    []listing.Listing
 	Relatedlinks []listing.Listing
 	Body         []byte
-	Metadata     parse.Metadata
+	Metadata     metadata.Metadata
 }

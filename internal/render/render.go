@@ -10,11 +10,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/mstcl/pher/internal/config"
-	"github.com/mstcl/pher/internal/convert"
-	"github.com/mstcl/pher/internal/listing"
-	"github.com/mstcl/pher/internal/state"
-	"github.com/mstcl/pher/internal/tag"
+	"github.com/mstcl/pher/v2/internal/config"
+	"github.com/mstcl/pher/v2/internal/convert"
+	"github.com/mstcl/pher/v2/internal/listing"
+	"github.com/mstcl/pher/v2/internal/state"
+	"github.com/mstcl/pher/v2/internal/tag"
 	"golang.org/x/sync/errgroup"
 )
 

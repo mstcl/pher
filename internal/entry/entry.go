@@ -1,8 +1,8 @@
 package entry
 
 import (
-	"github.com/mstcl/pher/internal/listing"
-	"github.com/mstcl/pher/internal/metadata"
+	"github.com/mstcl/pher/v2/internal/listing"
+	"github.com/mstcl/pher/v2/internal/metadata"
 )
 
 // An entry's data, containing: the metadata, the html body, the backlinks

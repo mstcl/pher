@@ -7,11 +7,11 @@ import (
 	"path/filepath"
 
 	"github.com/mattn/go-zglob"
-	"github.com/mstcl/pher/internal/checks"
-	"github.com/mstcl/pher/internal/convert"
-	"github.com/mstcl/pher/internal/listing"
-	"github.com/mstcl/pher/internal/metadata"
-	"github.com/mstcl/pher/internal/state"
+	"github.com/mstcl/pher/v2/internal/checks"
+	"github.com/mstcl/pher/v2/internal/convert"
+	"github.com/mstcl/pher/v2/internal/listing"
+	"github.com/mstcl/pher/v2/internal/metadata"
+	"github.com/mstcl/pher/v2/internal/state"
 )
 
 // Get all directories, and call listChildren() to populate the files within.

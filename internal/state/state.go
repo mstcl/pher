@@ -3,10 +3,10 @@ package state
 import (
 	"html/template"
 
-	"github.com/mstcl/pher/internal/config"
-	"github.com/mstcl/pher/internal/entry"
-	"github.com/mstcl/pher/internal/listing"
-	"github.com/mstcl/pher/internal/tag"
+	"github.com/mstcl/pher/v2/internal/config"
+	"github.com/mstcl/pher/v2/internal/entry"
+	"github.com/mstcl/pher/v2/internal/listing"
+	"github.com/mstcl/pher/v2/internal/tag"
 )
 
 type State struct {

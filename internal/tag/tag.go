@@ -1,6 +1,6 @@
 package tag
 
-import "github.com/mstcl/pher/internal/listing"
+import "github.com/mstcl/pher/v2/internal/listing"
 
 // A tag struct for extract.extractTags and render.RenderTags. Not to be
 // conceptually confused with parse.Metadata.Tags !!!

@@ -7,11 +7,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/mstcl/pher/internal/convert"
-	"github.com/mstcl/pher/internal/state"
+	"github.com/mstcl/pher/v2/internal/convert"
+	"github.com/mstcl/pher/v2/internal/state"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/mstcl/pher/internal/checks"
+	"github.com/mstcl/pher/v2/internal/checks"
 )
 
 // Move all index.md from files to the end so they are processed last

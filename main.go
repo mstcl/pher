@@ -18,7 +18,7 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/mstcl/pher/internal/cli"
+	"github.com/mstcl/pher/v2/internal/cli"
 )
 
 //go:embed web/template/*

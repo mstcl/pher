@@ -13,18 +13,18 @@ import (
 
 	"github.com/lmittmann/tint"
 	"github.com/mattn/go-zglob"
-	"github.com/mstcl/pher/internal/config"
-	"github.com/mstcl/pher/internal/render"
-	"github.com/mstcl/pher/internal/state"
+	"github.com/mstcl/pher/v2/internal/config"
+	"github.com/mstcl/pher/v2/internal/render"
+	"github.com/mstcl/pher/v2/internal/state"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/mstcl/pher/internal/checks"
-	"github.com/mstcl/pher/internal/feed"
+	"github.com/mstcl/pher/v2/internal/checks"
+	"github.com/mstcl/pher/v2/internal/feed"
 )
 
 const (
 	templateDir = "web/template"
-	version     = "v2.1.0"
+	version     = "v2.1.1"
 )
 
 var (

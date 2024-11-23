@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/mstcl/pher/internal/state"
+	"github.com/mstcl/pher/v2/internal/state"
 )
 
 func Construct(s *state.State, logger *slog.Logger) (string, error) {

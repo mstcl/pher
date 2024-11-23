@@ -8,11 +8,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mstcl/pher/internal/convert"
-	"github.com/mstcl/pher/internal/listing"
-	"github.com/mstcl/pher/internal/source"
-	"github.com/mstcl/pher/internal/state"
-	"github.com/mstcl/pher/internal/tag"
+	"github.com/mstcl/pher/v2/internal/convert"
+	"github.com/mstcl/pher/v2/internal/listing"
+	"github.com/mstcl/pher/v2/internal/source"
+	"github.com/mstcl/pher/v2/internal/state"
+	"github.com/mstcl/pher/v2/internal/tag"
 )
 
 // Process files to build up the entry data for all files, the tags data, and

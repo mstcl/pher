@@ -49,7 +49,11 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 
 		child.Debug("read in file")
 
-		src := source.Source{Body: buf.Bytes(), RendersHighlight: s.Config.CodeHighlight}
+		src := source.Source{
+			Body:          buf.Bytes(),
+			CodeHighlight: s.Config.CodeHighlight,
+			CodeTheme:     s.Config.CodeTheme,
+		}
 
 		md, err := src.ExtractMetadata()
 		if err != nil {
@@ -58,7 +62,7 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 
 		child.Debug("extracted metadata", slog.Any("metadata", md))
 
-		src.RendersTOC = md.TOC
+		src.TOC = md.TOC
 
 		// Don't proceed if file is draft
 		if md.Draft {
@@ -68,7 +72,7 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 		}
 
 		// Extract and parse html body
-		html, err := src.ToHTML()
+		rendered, err := src.ToHTML()
 		if err != nil {
 			return err
 		}
@@ -96,8 +100,9 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 
 		// Update entry
 		entry.Metadata = *md
-		entry.Body = html
+		entry.Body = rendered.HTML
 		entry.Href = href
+		entry.ChromaCSS = rendered.ChromaCSS
 		s.Entries[f] = entry
 
 		// Update assets from internal links

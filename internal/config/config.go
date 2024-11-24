@@ -18,6 +18,7 @@ type Config struct {
 	RootCrumb     string       `yaml:"rootCrumb"`
 	Path          string       `yaml:"path"`
 	Head          string       `yaml:"head"`
+	CodeTheme     string       `yaml:"codeTheme"`
 	Footer        []FooterLink `yaml:"footer"`
 	CodeHighlight bool         `yaml:"codeHighlight"`
 	IsExt         bool         `yaml:"keepExtension"`
@@ -34,6 +35,7 @@ func DefaultConfig() Config {
 		IsExt:         true,
 		RootCrumb:     "~",
 		Path:          "/",
+		CodeTheme:     "trac",
 	}
 }
 

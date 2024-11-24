@@ -13,5 +13,6 @@ type Entry struct {
 	Backlinks    []listing.Listing
 	Relatedlinks []listing.Listing
 	Body         []byte
+	ChromaCSS    []byte
 	Metadata     metadata.Metadata
 }

@@ -28,6 +28,7 @@ import (
 type data struct {
 	Body                                     template.HTML
 	Head                                     template.HTML
+	ChromaCSS                                template.CSS
 	WikiTitle                                string
 	Url                                      string
 	Title                                    string
@@ -133,7 +134,9 @@ func Render(ctx context.Context, s *state.State, logger *slog.Logger) error {
 				Url:          s.Config.Url + entry.Href,
 				Path:         s.Config.Path,
 				Crumbs:       crumbs,
+				ChromaCSS:    template.CSS(entry.ChromaCSS),
 			}
+
 			entryData.Title = convert.Title(entry.Metadata.Title, entryData.Filename)
 
 			if s.Config.IsExt {

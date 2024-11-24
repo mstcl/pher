@@ -3,6 +3,7 @@ module github.com/mstcl/pher/v2
 go 1.22.2
 
 require (
+	github.com/alecthomas/chroma/v2 v2.14.0
 	github.com/lmittmann/tint v1.0.5
 	github.com/mattn/go-zglob v0.0.4
 	github.com/yuin/goldmark v1.7.4
@@ -12,7 +13,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
-require (
-	github.com/alecthomas/chroma/v2 v2.14.0 // indirect
-	github.com/dlclark/regexp2 v1.11.2 // indirect
-)
+require github.com/dlclark/regexp2 v1.11.2 // indirect

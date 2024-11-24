@@ -13,7 +13,7 @@ there are a few differences:
 - Wikilinks are supported thanks to abhinav's
   [extension](https://github.com/abhinav/goldmark-wikilink).
 - No CSS framework.
-- Comes a small standalone binary (~9M). No need for a runtime.
+- Comes as a small standalone binary (~9M). No need for a runtime.
 - Some visual tweaks (personal preference).
 - The atom feed contains only dated entries.
 - Flatter file structure (no "rooting" every page). Let webservers handle the
@@ -51,6 +51,7 @@ authorEmail: "" # author's email
 # rendering options
 rootCrumb: "~" # render root link in navbar with this string.
 codeHighlight: true # render code with syntax highlighting.
+codeTheme: "trac" # chroma style (https://xyproto.github.io/splash/docs/all.html)
 keepExtension: true # render hrefs with .html extension
 head: "" # String to inject inside HTML <head>
 path: "/" # the subpath of your wiki (e.g. if hosted at example.org/wiki then it's /wiki)

@@ -5,11 +5,12 @@ import (
 	"bytes"
 	"fmt"
 
+	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
+	"github.com/mstcl/pher/v2/internal/customanchor"
 	"github.com/mstcl/pher/v2/internal/frontmatter"
 	"github.com/mstcl/pher/v2/internal/metadata"
 	"github.com/mstcl/pher/v2/internal/toc"
 	"github.com/mstcl/pher/v2/internal/wikilink"
-	"github.com/mstcl/pher/v2/internal/customanchor"
 	"github.com/yuin/goldmark"
 	highlighting "github.com/yuin/goldmark-highlighting/v2"
 	"github.com/yuin/goldmark/ast"
@@ -27,9 +28,15 @@ type Links struct {
 }
 
 type Source struct {
-	Body             []byte
-	RendersTOC       bool
-	RendersHighlight bool
+	CodeTheme     string
+	Body          []byte
+	TOC           bool
+	CodeHighlight bool
+}
+
+type Rendered struct {
+	HTML      []byte
+	ChromaCSS []byte
 }
 
 // Parse metadata (frontmatter) from source b.
@@ -69,7 +76,7 @@ func (s *Source) convert(r goldmark.Markdown) ([]byte, *metadata.Metadata, error
 
 // Read in b and parse body.
 // Frontmatter is reprocessed to strip it.
-func (s *Source) ToHTML() ([]byte, error) {
+func (s *Source) ToHTML() (*Rendered, error) {
 	ext := []goldmark.Extender{
 		&anchor.Extender{
 			Texter: &customanchor.Texter{},
@@ -89,13 +96,17 @@ func (s *Source) ToHTML() ([]byte, error) {
 		extension.Footnote,
 		extension.Typographer,
 	}
-	if s.RendersTOC {
+	if s.TOC {
 		ext = append(ext, &toc.Extender{})
 	}
 
-	if s.RendersHighlight {
+	chromaWriter := new(bytes.Buffer)
+
+	if s.CodeHighlight {
 		ext = append(ext, highlighting.NewHighlighting(
-			highlighting.WithStyle("friendly"),
+			highlighting.WithStyle(s.CodeTheme),
+			highlighting.WithCSSWriter(chromaWriter),
+			highlighting.WithFormatOptions(chromahtml.WithClasses(true)),
 		))
 	}
 
@@ -111,7 +122,10 @@ func (s *Source) ToHTML() ([]byte, error) {
 			fmt.Errorf("convert markdown: %w", err)
 	}
 
-	return body, nil
+	return &Rendered{
+		HTML:      body,
+		ChromaCSS: chromaWriter.Bytes(),
+	}, nil
 }
 
 // Parse b to find all other links within the document.

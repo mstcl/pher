@@ -4,7 +4,7 @@
 	<nav>
 	<a href="{{.Path}}">{{.RootCrumb}} </a>
 	{{- range .Crumbs}}
-	<a href="{{- if eq $p "/" -}}{{$p}}{{- end -}}/{{.Href}}"> {{.Title}} </a>
+	<a href="{{- if ne $p "/" -}}{{$p}}{{- end -}}/{{.Href}}"> {{.Title}} </a>
 	{{- end}}
 	{{- if ne .Filename "index" }}
 	<span>{{.Filename}}</span>

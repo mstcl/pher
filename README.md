@@ -22,7 +22,7 @@ there are a few differences:
 ## Installation
 
 ```bash
-$ go install github.com/mstcl/pher/v2@v2.3.1
+$ go install github.com/mstcl/pher/v2@v2.3.2
 ```
 
 ## Usage
@@ -105,6 +105,7 @@ layout: "list" # Available values: "grid", "list", "log". Only effective for ind
 
 ## Ideas
 
+- [ ] Git diff mode that renders only changes/untracked files
 - [ ] Compress images to webp or mozilla jpeg
 
 ## Notes

@@ -193,13 +193,21 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 		}
 
 		// Remove self from l to ensure uniqueness
+		// Also deduplicate listing for items that share more than two tags
+		uniqueFilenames := make(map[string]bool)
+
 		for _, l := range listings {
 			filename := strings.TrimSuffix(l.Href, filepath.Ext(l.Href))
 			if filepath.Join(s.InDir, filename) == strings.TrimSuffix(f, ".md") {
 				continue
 			}
 
+			if _, ok := uniqueFilenames[filename]; ok {
+				continue
+			}
+
 			relatedListings = append(relatedListings, l)
+			uniqueFilenames[filename] = true
 		}
 
 		entry.Relatedlinks = relatedListings

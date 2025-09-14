@@ -23,7 +23,7 @@ import (
 	"github.com/mstcl/pher/v2/internal/cli"
 )
 
-//go:embed web/template/*
+//go:embed web/template/* web/static/*
 var fs embed.FS
 
 func main() {
@@ -31,7 +31,7 @@ func main() {
 		TimeFormat: time.Kitchen,
 	}))
 
-	cli.Templates = fs
+	cli.EmbedFS = fs
 
 	if err := cli.Parse(); err != nil {
 		logger.Error(fmt.Sprintf("%v", err))

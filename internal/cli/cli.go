@@ -23,12 +23,14 @@ import (
 )
 
 const (
-	templateDir = "web/template"
-	version     = "v2.3.2"
+	relTemplateDir     = "web/template"
+	relStaticDir       = "web/static"
+	relStaticOutputDir = "static"
+	version            = "v2.3.2"
 )
 
 var (
-	Templates                 embed.FS
+	EmbedFS                   embed.FS
 	configFile, outDir, inDir string
 	dryRun                    bool
 	showVersion               bool
@@ -143,7 +145,7 @@ func Parse() error {
 	}
 
 	if fileExist, err := checks.FileExist(configFile); err != nil {
-		return fmt.Errorf("stat: %v", err)
+		return fmt.Errorf("stat: %w", err)
 	} else if !fileExist {
 		return fmt.Errorf("missing: %s", configFile)
 	}
@@ -162,6 +164,7 @@ func Parse() error {
 	if !s.DryRun {
 		logger.Info("cleaning output directory")
 
+		// TODO: update this so it ignores staticOutputDir
 		files, err := filepath.Glob(outDir + "/*")
 		if err != nil {
 			return fmt.Errorf("glob files: %w", err)
@@ -176,7 +179,7 @@ func Parse() error {
 
 	// Initiate templates
 	s.Templates = template.Must(template.ParseFS(
-		Templates, filepath.Join(templateDir, "*")))
+		EmbedFS, filepath.Join(relTemplateDir, "*")))
 
 	logger.Debug("loaded templates")
 
@@ -223,10 +226,8 @@ func Parse() error {
 	)
 
 	// Copy asset dirs/files over to output directory
-	logger.Info("syncing assets")
-
-	moveGroup, _ := errgroup.WithContext(context.Background())
-	moveGroup.Go(func() error {
+	assetsMoveGroup, _ := errgroup.WithContext(context.Background())
+	assetsMoveGroup.Go(func() error {
 		if err := syncAssets(context.Background(), &s, logger); err != nil {
 			return err
 		}
@@ -235,20 +236,39 @@ func Parse() error {
 	},
 	)
 
-	// Create beautiful HTML
-	logger.Info("templating all files")
+	logger.Info("synced user assets")
 
+	// Copy static content to the output directory
+	staticMoveGroup, _ := errgroup.WithContext(context.Background())
+	staticMoveGroup.Go(func() error {
+		if err := copyStatic(&s, logger); err != nil {
+			return err
+		}
+
+		return nil
+	},
+	)
+
+	logger.Info("copied static files")
+
+	// Create beautiful HTML
 	renderGroup, _ := errgroup.WithContext(context.Background())
 	renderGroup.Go(func() error {
 		return render.Render(context.Background(), &s, logger)
 	})
+
+	logger.Info("templated all source files")
 
 	// Wait for all goroutines to finish
 	if err := feedGroup.Wait(); err != nil {
 		return err
 	}
 
-	if err := moveGroup.Wait(); err != nil {
+	if err := assetsMoveGroup.Wait(); err != nil {
+		return err
+	}
+
+	if err := staticMoveGroup.Wait(); err != nil {
 		return err
 	}
 

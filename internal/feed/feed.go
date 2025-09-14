@@ -48,7 +48,7 @@ func Construct(s *state.State, logger *slog.Logger) (string, error) {
 
 		feed.Items = append(feed.Items, entry)
 
-		child.Debug("Atom entry created")
+		child.Debug("atom entry created")
 	}
 
 	atom, err := feed.ToAtom()

@@ -13,11 +13,12 @@ there are a few differences:
 - Wikilinks are supported thanks to abhinav's
   [extension](https://github.com/abhinav/goldmark-wikilink).
 - No CSS framework.
-- Comes as a small standalone binary (~9M). No need for a runtime.
+- Comes as a small standalone binary (~9M).
+  No need for a runtime.
 - Some visual tweaks (personal preference).
 - The atom feed contains only dated entries.
-- Flatter file structure (no "rooting" every page). Let webservers handle the
-  routing and beautifying.
+- Flatter file structure (no "rooting" every page).
+  Let webservers handle the routing and beautifying.
 
 ## Installation
 
@@ -66,8 +67,8 @@ footer:
 
 ## Frontmatter
 
-pher reads in frontmatter in YAML format. Available fields and default values
-are:
+pher reads in frontmatter in YAML format.
+Available fields and default values are:
 
 ```yaml
 ---
@@ -82,6 +83,7 @@ toc: false # Render a table of contents for this entry
 showHeader: true # Show the header (title, description, tags, date)
 layout: "list" # Available values: "grid", "list", "log". Only effective for index.md files.
 ---
+
 ```
 
 ## To do
@@ -112,9 +114,9 @@ layout: "list" # Available values: "grid", "list", "log". Only effective for ind
 
 ### Editing templates
 
-pher embeds the templates in `web/templates` with go:embed. This means pher can
-run as a standalone binary. Unfortunately, to modify the templates, we have to
-recompile.
+pher embeds the templates in `web/templates` with go:embed.
+This means pher can run as a standalone binary.
+Unfortunately, to modify the templates, we have to recompile.
 
 ### Removing html extension
 
@@ -130,8 +132,9 @@ location / {
 }
 ```
 
-Additionally, setting `keepExtension: false` will strip ".html" from href
-links. This might be necessary if you use weird browsers that break redirects.
+Additionally, setting `keepExtension:
+false` will strip ".html" from href links.
+This might be necessary if you use weird browsers that break redirects.
 
 ## Credits
 

@@ -3,6 +3,8 @@ package cli
 import (
 	"context"
 	"fmt"
+	"io"
+	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -10,8 +12,6 @@ import (
 	"github.com/mstcl/pher/v2/internal/convert"
 	"github.com/mstcl/pher/v2/internal/state"
 	"golang.org/x/sync/errgroup"
-
-	"github.com/mstcl/pher/v2/internal/checks"
 )
 
 // Move all index.md from files to the end so they are processed last

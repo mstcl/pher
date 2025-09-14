@@ -1,13 +1,13 @@
+// Package checks [TODO]
 package checks
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/mattn/go-zglob"
 )
 
-// Check for markdown files under directory
+// EntryPresent checks for presence of  markdown files under a directory
 func EntryPresent(f string) (bool, error) {
 	// we want to check all nested files
 	files, err := zglob.Glob(f + "/**/*.md")
@@ -22,7 +22,7 @@ func EntryPresent(f string) (bool, error) {
 	return true, nil
 }
 
-// Return true/false if a path exists/doesn't exist
+// FileExist returns true/false if a path exists/doesn't exist
 func FileExist(f string) (bool, error) {
 	if _, err := os.Stat(f); err != nil {
 		if os.IsNotExist(err) {

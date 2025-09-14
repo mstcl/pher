@@ -39,7 +39,7 @@ var (
 	debug                     bool
 )
 
-func Parse() error {
+func Handler() error {
 	start := time.Now()
 
 	var err error
@@ -192,7 +192,7 @@ func Parse() error {
 
 	logger.Debug("loaded and initialized templates")
 
-	// Grab files and reorder so indexes are processed last
+	// Glob for markdown files and reorder so indexes are processed last
 	files, err := zglob.Glob(s.InDir + "/**/*.md")
 	if err != nil {
 		return fmt.Errorf("glob files: %w", err)

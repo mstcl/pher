@@ -95,8 +95,8 @@ func Render(ctx context.Context, s *state.State, logger *slog.Logger) error {
 
 		eg.Go(func() error {
 			// Don't render drafts or skipped files
-			entry := s.Nodes[np]
-			if entry.Metadata.Draft || s.Skip[np] {
+			entry := s.NodeMap[np]
+			if entry.Metadata.Draft || s.SkippedNodePathMap[np] {
 				return nil
 			}
 
@@ -116,7 +116,7 @@ func Render(ctx context.Context, s *state.State, logger *slog.Logger) error {
 			// crumbs, etc.
 			entryData := data{
 				OutFilename:  outPath,
-				Listing:      s.ListEntries[np],
+				Listing:      s.ListEntryMap[np],
 				Filename:     np.Base(),
 				Description:  entry.Metadata.Description,
 				Tags:         entry.Metadata.Tags,

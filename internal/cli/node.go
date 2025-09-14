@@ -32,7 +32,7 @@ type populateNodesListEntryHelperInput struct {
 // is displaying a log)
 func populateNodesListEntry(s *state.State, logger *slog.Logger) error {
 	// Initialize missing map
-	s.NodegroupsMissingIndex = make(map[nodepath.NodePath]bool)
+	s.NodegroupWithoutIndexMap = make(map[nodepath.NodePath]bool)
 
 	files, err := zglob.Glob(filepath.Join(s.InputDir, "**", "*"))
 	if err != nil {
@@ -82,8 +82,8 @@ func populateNodesListEntry(s *state.State, logger *slog.Logger) error {
 	}
 
 	// Update files
-	for f := range s.NodegroupsMissingIndex {
-		entry := s.Nodes[f]
+	for f := range s.NodegroupWithoutIndexMap {
+		entry := s.NodeMap[f]
 
 		// add index to our files to render
 		s.NodePaths = append(s.NodePaths, f)
@@ -106,7 +106,7 @@ func populateNodesListEntry(s *state.State, logger *slog.Logger) error {
 		entry.Metadata = *md
 
 		// update record
-		s.Nodes[f] = entry
+		s.NodeMap[f] = entry
 	}
 
 	return nil
@@ -124,7 +124,7 @@ func populateNodesListEntryHelper(
 	// Whether to render children
 	// Use source file as key for consistency
 	nodegroupIndexPath := nodepath.NodePath(filepath.Join(i.nodegroup, "index.md"))
-	isLog := s.Nodes[nodegroupIndexPath].Metadata.Layout == "log"
+	isLog := s.NodeMap[nodegroupIndexPath].Metadata.Layout == "log"
 
 	for _, np := range i.childrenNodePath {
 		child := logger.With(slog.Any("filepath", np), slog.String("context", "child listing"))
@@ -152,14 +152,14 @@ func populateNodesListEntryHelper(
 		}
 
 		// Skip index files, unlisted ones
-		if np.Base() == "index" || s.Nodes[np].Metadata.Unlisted {
+		if np.Base() == "index" || s.NodeMap[np].Metadata.Unlisted {
 			child.Debug("skip index files and unlisted files")
 
 			continue
 		}
 
 		// Don't render these files later
-		s.Skip[np] = isLog
+		s.SkippedNodePathMap[np] = isLog
 
 		// Throw error if parent's view is Log but child is subdirectory
 		if IsDir && isLog {
@@ -185,7 +185,7 @@ func populateNodesListEntryHelper(
 
 			_, err := os.Stat(indexFile)
 			if os.IsNotExist(err) {
-				s.NodegroupsMissingIndex[np+"/index.md"] = true
+				s.NodegroupWithoutIndexMap[np+"/index.md"] = true
 				child.Debug("index doesn't exist, added to missing index state")
 			} else if err != nil {
 				return fmt.Errorf("stat %s: %w", s.ConfigFile, err)
@@ -228,21 +228,21 @@ func populateNodesListEntryHelper(
 		// Grab titles and description.
 		// If metadata has title -> use that.
 		// If not -> use filename only if entry is not a directory
-		title := s.Nodes[np].Metadata.Title
+		title := s.NodeMap[np].Metadata.Title
 		if len(title) > 0 {
 			l.Title = title
 		} else if !l.IsDir {
 			l.Title = np.Base()
 		}
 
-		l.Description = s.Nodes[np].Metadata.Description
+		l.Description = s.NodeMap[np].Metadata.Description
 
 		// Log entries for log layout
 
 		if isLog {
-			l.Body = template.HTML(s.Nodes[np].Body)
+			l.Body = template.HTML(s.NodeMap[np].Body)
 
-			date := s.Nodes[np].Metadata.Date
+			date := s.NodeMap[np].Metadata.Date
 			if len(date) > 0 {
 				l.Date, l.MachineDate, err = convert.Date(date)
 				if err != nil {
@@ -250,7 +250,7 @@ func populateNodesListEntryHelper(
 				}
 			}
 
-			dateUpdated := s.Nodes[np].Metadata.DateUpdated
+			dateUpdated := s.NodeMap[np].Metadata.DateUpdated
 			if len(dateUpdated) > 0 {
 				l.DateUpdated, l.MachineDateUpdated, err = convert.Date(dateUpdated)
 				if err != nil {
@@ -258,7 +258,7 @@ func populateNodesListEntryHelper(
 				}
 			}
 
-			l.Tags = s.Nodes[np].Metadata.Tags
+			l.Tags = s.NodeMap[np].Metadata.Tags
 		}
 
 		// Now we act on the index files
@@ -267,14 +267,14 @@ func populateNodesListEntryHelper(
 		}
 
 		// Append to listing map
-		if s.Nodes[np].Metadata.Pinned {
-			s.ListEntries[nodegroupIndexPath] = append(
+		if s.NodeMap[np].Metadata.Pinned {
+			s.ListEntryMap[nodegroupIndexPath] = append(
 				[]listentry.ListEntry{l},
-				s.ListEntries[nodegroupIndexPath]...)
+				s.ListEntryMap[nodegroupIndexPath]...)
 			continue
 		}
 
-		s.ListEntries[nodegroupIndexPath] = append(s.ListEntries[nodegroupIndexPath], l)
+		s.ListEntryMap[nodegroupIndexPath] = append(s.ListEntryMap[nodegroupIndexPath], l)
 	}
 
 	return nil

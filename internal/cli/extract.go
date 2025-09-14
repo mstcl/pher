@@ -38,7 +38,7 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 			slog.String("context", "extracting extras"),
 		)
 
-		entry := s.Nodes[np]
+		entry := s.NodeMap[np]
 
 		file, err := os.Open(np.String())
 		if err != nil {
@@ -108,7 +108,7 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 		entry.Body = rendered.HTML
 		entry.Href = href
 		entry.ChromaCSS = rendered.ChromaCSS
-		s.Nodes[np] = entry
+		s.NodeMap[np] = entry
 
 		// Update assets from internal links
 		for _, v := range links.InternalLinks {
@@ -118,10 +118,10 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 				return nil
 			}
 
-			s.UserAssets[assetpath.AssetPath(ref)] = true
+			s.UserAssetMap[assetpath.AssetPath(ref)] = true
 		}
 
-		child.Debug("updated assets with internal links paths", slog.Any("assets", s.UserAssets))
+		child.Debug("updated assets with internal links paths", slog.Any("assets", s.UserAssetMap))
 
 		// Update assets and wikilinks from backlinks
 		for _, v := range links.BackLinks {
@@ -134,13 +134,13 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 			// Process links with extensions as external files
 			// like images/gifs
 			if len(filepath.Ext(ref)) > 0 {
-				s.UserAssets[assetpath.AssetPath(ref)] = true
+				s.UserAssetMap[assetpath.AssetPath(ref)] = true
 			}
 
 			ref += ".md"
 
 			// Save backlinks
-			linkedEntry := s.Nodes[nodepath.NodePath(ref)]
+			linkedEntry := s.NodeMap[nodepath.NodePath(ref)]
 			linkedEntry.Backlinks = append(
 				linkedEntry.Backlinks,
 				listentry.ListEntry{
@@ -150,7 +150,7 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 					IsDir:       isDir,
 				},
 			)
-			s.Nodes[nodepath.NodePath(ref)] = linkedEntry
+			s.NodeMap[nodepath.NodePath(ref)] = linkedEntry
 		}
 
 		child.Debug("updated assets and wiklinks from backlinks")
@@ -188,7 +188,7 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 			slog.String("context", "extracting extras"),
 		)
 
-		entry := s.Nodes[np]
+		entry := s.NodeMap[np]
 		if entry.Metadata.Draft || len(entry.Metadata.Tags) == 0 {
 			continue
 		}
@@ -227,7 +227,7 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 		child.Debug("extracted related links", slog.Any("relatedlinks", relatedListings))
 
 		// Update entry
-		s.Nodes[np] = entry
+		s.NodeMap[np] = entry
 	}
 
 	// Transform maps of tags count and tags listing to give a sorted slice of tags.

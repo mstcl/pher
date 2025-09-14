@@ -106,7 +106,7 @@ func copyFile(inPath string, outPath string, permission os.FileMode) error {
 func copyUserAssets(ctx context.Context, s *state.State, logger *slog.Logger) error {
 	eg, _ := errgroup.WithContext(ctx)
 
-	for assetPath := range s.UserAssets {
+	for assetPath := range s.UserAssetMap {
 		child := logger.With(
 			slog.Any("assetpath", assetPath),
 			slog.String("context", "copying asset"),

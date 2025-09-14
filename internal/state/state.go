@@ -12,29 +12,29 @@ import (
 )
 
 type State struct {
-	Config                 *config.Config
-	Templates              *template.Template
-	Nodes                  map[nodepath.NodePath]node.Node
-	UserAssets             map[assetpath.AssetPath]bool
-	Skip                   map[nodepath.NodePath]bool
-	NodegroupsMissingIndex map[nodepath.NodePath]bool
-	ListEntries            map[nodepath.NodePath][]listentry.ListEntry
-	InputDir               string
-	OutputDir              string
-	ConfigFile             string
-	NodePaths              []nodepath.NodePath
-	NodeTags               []tag.Tag
-	ShowVersion            bool
-	Debug                  bool
-	DryRun                 bool
+	Config                   *config.Config
+	Templates                *template.Template
+	NodeMap                  map[nodepath.NodePath]node.Node
+	UserAssetMap             map[assetpath.AssetPath]bool
+	SkippedNodePathMap       map[nodepath.NodePath]bool
+	NodegroupWithoutIndexMap map[nodepath.NodePath]bool
+	ListEntryMap             map[nodepath.NodePath][]listentry.ListEntry
+	InputDir                 string
+	OutputDir                string
+	ConfigFile               string
+	NodePaths                []nodepath.NodePath
+	NodeTags                 []tag.Tag
+	ShowVersion              bool
+	Debug                    bool
+	DryRun                   bool
 }
 
 func Init() State {
 	return State{
-		Nodes:       make(map[nodepath.NodePath]node.Node),
-		UserAssets:  make(map[assetpath.AssetPath]bool),
-		ListEntries: make(map[nodepath.NodePath][]listentry.ListEntry),
-		Skip:        make(map[nodepath.NodePath]bool),
-		NodeTags:    []tag.Tag{},
+		NodeMap:            make(map[nodepath.NodePath]node.Node),
+		UserAssetMap:       make(map[assetpath.AssetPath]bool),
+		ListEntryMap:       make(map[nodepath.NodePath][]listentry.ListEntry),
+		SkippedNodePathMap: make(map[nodepath.NodePath]bool),
+		NodeTags:           []tag.Tag{},
 	}
 }

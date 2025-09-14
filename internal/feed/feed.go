@@ -23,7 +23,7 @@ func Construct(s *state.State, logger *slog.Logger) (string, error) {
 
 	feed.Items = []*Item{}
 
-	for _, v := range s.Nodes {
+	for _, v := range s.NodeMap {
 		child := logger.With(slog.String("href", v.Href), slog.String("context", "atom feed"))
 
 		md := v.Metadata

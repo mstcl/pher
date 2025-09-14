@@ -1,6 +1,8 @@
 package nodepath
 
 import (
+	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -23,6 +25,21 @@ func (np NodePath) Base() string {
 }
 
 func (np NodePath) IsNodegroup() (bool, error) {
+	// Stat nodepath
+	npStat, err := os.Stat(np.String())
+	if err != nil {
+		return false, fmt.Errorf("os.Stat %s: %w", np, err)
+	}
+
+	// Only process nodegroups
+	if npStat.Mode().IsRegular() {
+		return false, nil
+	}
+
+	return true, nil
+}
+
+func (np NodePath) HasChildren() (bool, error) {
 	// we want to check all nested files
 	files, err := zglob.Glob(filepath.Join(np.String(), "**", "*.md"))
 	if err != nil {

@@ -116,7 +116,7 @@ func Render(ctx context.Context, s *state.State, logger *slog.Logger) error {
 			// crumbs, etc.
 			entryData := data{
 				OutFilename:  outPath,
-				Listing:      s.NodePathLinkMap[np],
+				Listing:      s.NodePathLinksMap[np],
 				Filename:     np.Base(),
 				Description:  entry.Metadata.Description,
 				Tags:         entry.Metadata.Tags,

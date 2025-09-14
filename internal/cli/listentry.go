@@ -16,58 +16,57 @@ import (
 )
 
 type populateNodePathLinksHelperInput struct {
-	nodegroup        string
+	parentNodePath   nodepath.NodePath
 	childrenNodePath []nodepath.NodePath
 }
 
-// populateNodePathLinks finds all nodegroups. For each of them, find the children
-// nodepaths (can either be nodes or nodegroups), and calls
+// populateNodePathLinks finds all nodegroups. For each of them, find the
+// children nodepaths (can either be nodes or nodegroups), and calls
 // populateNodesListEntryHelper() on children nodepaths to populate the
 // children's nodepath links
-//
-// * listing: listing entries of parents.
-//
-// * missing: bool map of parent index paths that are missing.
-//
-// * skip: bool map of files that should not be rendered (because its parents
-// is displaying a log)
 func populateNodePathLinks(s *state.State, logger *slog.Logger) error {
-	// Initialize missing map
 	s.NodegroupWithoutIndexMap = make(map[nodepath.NodePath]bool)
 
-	files, err := zglob.Glob(filepath.Join(s.InputDir, "**", "*"))
+	nodepathsRaw, err := zglob.Glob(filepath.Join(s.InputDir, "**", "*"))
 	if err != nil {
 		return err
 	}
 
-	files = append(files, s.InputDir)
+	var nodepaths []nodepath.NodePath
+	for _, np := range nodepathsRaw {
+		nodepaths = append(nodepaths, nodepath.NodePath(np))
+	}
 
-	logger.Debug("found files to process listing", slog.Any("files", files))
+	// add the root "." as well
+	nodepaths = append(nodepaths, nodepath.NodePath(s.InputDir))
 
-	// Go through everything that aren't files
-	// Glob those directories for both files and directories
-	// These are PARENTS with listings
-	for _, f := range files {
-		child := logger.With(slog.String("filepath", f), slog.String("context", "file listing"))
+	logger.Debug("found all nodepaths", slog.Any("nodepaths", nodepaths))
 
-		// Stat files/directories
-		info, err := os.Stat(f)
+	// Go through and drop all nodepaths that aren't nodegroups Glob nodegroups
+	// for further nodepaths and call the helper function to populate their
+	// NodePathLink slice
+	for _, np := range nodepaths {
+		childNodePath := logger.With(
+			slog.Any("nodepath", np),
+			slog.String("context", "populateNodePathLinks"),
+		)
+
+		isNodegroup, err := np.IsNodegroup()
 		if err != nil {
 			return err
 		}
 
-		// Only process directories
-		if info.Mode().IsRegular() {
+		if !isNodegroup {
 			continue
 		}
 
-		// Glob under directory
-		childrenRaw, err := filepath.Glob(f + "/*")
+		// Glob children of the nodepath
+		childrenRaw, err := filepath.Glob(filepath.Join(np.String(), "*"))
 		if err != nil {
 			return err
 		}
 
-		child.Debug("found children files", slog.Any("files", childrenRaw))
+		childNodePath.Debug("found children files", slog.Any("files", childrenRaw))
 
 		var children []nodepath.NodePath
 		for _, child := range childrenRaw {
@@ -75,19 +74,20 @@ func populateNodePathLinks(s *state.State, logger *slog.Logger) error {
 		}
 
 		if err := populateNodePathLinksHelper(s, &populateNodePathLinksHelperInput{
-			nodegroup:        f,
+			parentNodePath:   np,
 			childrenNodePath: children,
 		}, logger); err != nil {
 			return err
 		}
 	}
 
-	// Update files
-	for f := range s.NodegroupWithoutIndexMap {
-		entry := s.NodeMap[f]
+	// Add index files to NodegroupWithoutIndexMap
+	// TODO: refactor this
+	for np := range s.NodegroupWithoutIndexMap {
+		entry := s.NodeMap[np]
 
 		// add index to our files to render
-		s.NodePaths = append(s.NodePaths, f)
+		s.NodePaths = append(s.NodePaths, np)
 		md := metadata.Default()
 
 		// we have inDir/a/b/c/index.md
@@ -95,7 +95,7 @@ func populateNodePathLinks(s *state.State, logger *slog.Logger) error {
 		// i.e. title is the folder name
 
 		// inDir/a/b/c/index.md -> a/b/c/index.md
-		rel, _ := filepath.Rel(s.InputDir, f.String())
+		rel, _ := filepath.Rel(s.InputDir, np.String())
 
 		// a/b/c/index.md -> a/b/c -> a/b, c
 		_, dir := filepath.Split(filepath.Dir(rel))
@@ -107,16 +107,16 @@ func populateNodePathLinks(s *state.State, logger *slog.Logger) error {
 		entry.Metadata = *md
 
 		// update record
-		s.NodeMap[f] = entry
+		s.NodeMap[np] = entry
 	}
 
 	return nil
 }
 
 // Sub-function to loop through depth 1 children inside the current parent
-// (parentDir) to populate and return the nodepathlink map, the missing map, and the
-// skip map. Additional calls constructListingEntry() to make individual listing
-// entry.
+// (parentDir) to populate and return the NodePathLinksMap, the
+// NodegroupWithoutIndexMap, and the SkippedNodePathMap.
+// TODO: refactor this
 func populateNodePathLinksHelper(
 	s *state.State,
 	i *populateNodePathLinksHelperInput,
@@ -124,7 +124,7 @@ func populateNodePathLinksHelper(
 ) error {
 	// Whether to render children
 	// Use source file as key for consistency
-	nodegroupIndexPath := nodepath.NodePath(filepath.Join(i.nodegroup, "index.md"))
+	nodegroupIndexPath := nodepath.NodePath(filepath.Join(i.parentNodePath.String(), "index.md"))
 	isLog := s.NodeMap[nodegroupIndexPath].Metadata.Layout == "log"
 
 	for _, np := range i.childrenNodePath {
@@ -170,12 +170,12 @@ func populateNodePathLinksHelper(
 		}
 
 		// check if the nodepath is actually a node group
-		isNodeGroup, err := np.IsNodegroup()
+		nodegroupHasChildren, err := np.HasChildren()
 		if err != nil {
 			return err
 		}
 
-		if IsDir && !isNodeGroup {
+		if IsDir && !nodegroupHasChildren {
 			child.Debug("empty directory found - skipping")
 			continue
 		}
@@ -203,7 +203,7 @@ func populateNodePathLinksHelper(
 		// relevant rendering data fields like html body and tags for parents
 		// with log view configured.
 		if l.IsDir {
-			target, err := filepath.Rel(i.nodegroup, np.String())
+			target, err := filepath.Rel(i.parentNodePath.String(), np.String())
 			if err != nil {
 				return err
 			}
@@ -218,7 +218,7 @@ func populateNodePathLinksHelper(
 			// Switch target to index for title & description
 			np = nodepath.NodePath(filepath.Join(np.String(), "index.md"))
 		} else {
-			target := np.Href(i.nodegroup, false)
+			target := np.Href(i.parentNodePath.String(), false)
 			if s.Config.IsExt {
 				target += ".html"
 			}
@@ -269,13 +269,13 @@ func populateNodePathLinksHelper(
 
 		// Append to listing map
 		if s.NodeMap[np].Metadata.Pinned {
-			s.NodePathLinkMap[nodegroupIndexPath] = append(
+			s.NodePathLinksMap[nodegroupIndexPath] = append(
 				[]nodepathlink.NodePathLink{l},
-				s.NodePathLinkMap[nodegroupIndexPath]...)
+				s.NodePathLinksMap[nodegroupIndexPath]...)
 			continue
 		}
 
-		s.NodePathLinkMap[nodegroupIndexPath] = append(s.NodePathLinkMap[nodegroupIndexPath], l)
+		s.NodePathLinksMap[nodegroupIndexPath] = append(s.NodePathLinksMap[nodegroupIndexPath], l)
 	}
 
 	return nil

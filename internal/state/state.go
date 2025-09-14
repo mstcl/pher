@@ -11,6 +11,12 @@ import (
 	"github.com/mstcl/pher/v2/internal/tag"
 )
 
+// State [TODO]
+//
+// * SkippedNodePathMap: map of NodePaths that shouldn't be rendered because its
+// nodegroup is of Log listing type.
+//
+// * NodegroupWithoutIndexMap: map of Nodegroups that don't have an index file
 type State struct {
 	Config                   *config.Config
 	Templates                *template.Template
@@ -18,7 +24,7 @@ type State struct {
 	UserAssetMap             map[assetpath.AssetPath]bool
 	SkippedNodePathMap       map[nodepath.NodePath]bool
 	NodegroupWithoutIndexMap map[nodepath.NodePath]bool
-	NodePathLinkMap          map[nodepath.NodePath][]nodepathlink.NodePathLink
+	NodePathLinksMap         map[nodepath.NodePath][]nodepathlink.NodePathLink
 	InputDir                 string
 	OutputDir                string
 	ConfigFile               string
@@ -33,7 +39,7 @@ func Init() State {
 	return State{
 		NodeMap:            make(map[nodepath.NodePath]node.Node),
 		UserAssetMap:       make(map[assetpath.AssetPath]bool),
-		NodePathLinkMap:    make(map[nodepath.NodePath][]nodepathlink.NodePathLink),
+		NodePathLinksMap:   make(map[nodepath.NodePath][]nodepathlink.NodePathLink),
 		SkippedNodePathMap: make(map[nodepath.NodePath]bool),
 		NodeTags:           []tag.Tag{},
 	}

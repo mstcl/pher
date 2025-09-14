@@ -2,9 +2,9 @@
 {{$p := .Path}}
   <header class="article-header">
 	<nav>
-	<a href="{{.Path}}">{{.RootCrumb}} </a>
+	<a href="{{.Path}}{{- if ne .Path "/" }}/{{ end }}">{{.RootCrumb}} </a>
 	{{- range .Crumbs}}
-	<a href="{{- if ne $p "/" -}}{{$p}}{{- end -}}/{{.Href}}"> {{.Title}} </a>
+	<a href="{{joinPath $p .Href}}"> {{.Title}} </a>
 	{{- end}}
 	{{- if ne .Filename "index" }}
 	<span>{{.Filename}}</span>

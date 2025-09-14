@@ -114,11 +114,7 @@ func Parse() error {
 	// Sanitize input directory
 	inDir, err = filepath.Abs(inDir)
 	if err != nil {
-		return fmt.Errorf("absolute path: %w", err)
-	}
-
-	if err = checks.DirExist(outDir); err != nil {
-		return fmt.Errorf("output directory: %w", err)
+		return fmt.Errorf("filepath.Abs: %w", err)
 	}
 
 	s.InDir = inDir
@@ -128,11 +124,12 @@ func Parse() error {
 	// Sanitize output directory
 	outDir, err = filepath.Abs(outDir)
 	if err != nil {
-		return fmt.Errorf("absolute path: %w", err)
+		return fmt.Errorf("filepath.Abs: %w", err)
 	}
 
-	if err = checks.DirExist(outDir); err != nil {
-		return fmt.Errorf("output directory: %w", err)
+	// Create output directory
+	if err := os.MkdirAll(outDir, 0o755); err != nil {
+		return fmt.Errorf("os.MkdirAll %s: %v", outDir, err)
 	}
 
 	s.OutDir = outDir

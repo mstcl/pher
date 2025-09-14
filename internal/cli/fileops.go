@@ -44,15 +44,24 @@ func removeFiles(files []string) error {
 	return nil
 }
 
-// copyFile
+// copyFile copies inPath to outPath using ioReader and ioWriter
 func copyFile(inPath string, outPath string, permission os.FileMode) error {
-	content, err := os.ReadFile(inPath)
+	inFile, err := os.Open(inPath)
 	if err != nil {
-		return fmt.Errorf("read file %s: %w", inPath, err)
+		return fmt.Errorf("os.Open %s: %w", inPath, err)
 	}
+	defer inFile.Close()
 
-	if err = os.WriteFile(outPath, content, permission); err != nil {
-		return fmt.Errorf("write file %s: %w", outPath, err)
+	outFile, err := os.OpenFile(outPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, permission)
+	if err != nil {
+		return fmt.Errorf("os.OpenFile %s: %w", outPath, err)
+	}
+	defer outFile.Close()
+
+	// Copy the content using a stream
+	_, err = io.Copy(outFile, inFile)
+	if err != nil {
+		return fmt.Errorf("io.Copy %s to %s: %w", inPath, outPath, err)
 	}
 
 	return nil

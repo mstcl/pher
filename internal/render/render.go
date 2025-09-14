@@ -12,8 +12,8 @@ import (
 
 	"github.com/mstcl/pher/v2/internal/config"
 	"github.com/mstcl/pher/v2/internal/convert"
-	"github.com/mstcl/pher/v2/internal/listentry"
 	"github.com/mstcl/pher/v2/internal/nodepath"
+	"github.com/mstcl/pher/v2/internal/nodepathlink"
 	"github.com/mstcl/pher/v2/internal/state"
 	"github.com/mstcl/pher/v2/internal/tag"
 	"golang.org/x/sync/errgroup"
@@ -47,7 +47,7 @@ type data struct {
 	Tags                                     []string
 	TagsListing                              []tag.Tag
 	Footer                                   []config.FooterLink
-	Backlinks, Relatedlinks, Crumbs, Listing []listentry.ListEntry
+	Backlinks, Relatedlinks, Crumbs, Listing []nodepathlink.NodePathLink
 	TOC                                      bool
 	ShowHeader                               bool
 }
@@ -104,9 +104,9 @@ func Render(ctx context.Context, s *state.State, logger *slog.Logger) error {
 			crumbsTitle, crumbsLink := convert.NavCrumbs(np, s.InputDir, s.Config.IsExt)
 
 			// Populate navigation crumbs
-			crumbs := []listentry.ListEntry{}
+			crumbs := []nodepathlink.NodePathLink{}
 			for i, t := range crumbsTitle {
-				crumbs = append(crumbs, listentry.ListEntry{Href: crumbsLink[i], Title: t})
+				crumbs = append(crumbs, nodepathlink.NodePathLink{Href: crumbsLink[i], Title: t})
 			}
 
 			// The output path outDir/{a/b/c/file}.html (part in curly brackets is the href)
@@ -116,7 +116,7 @@ func Render(ctx context.Context, s *state.State, logger *slog.Logger) error {
 			// crumbs, etc.
 			entryData := data{
 				OutFilename:  outPath,
-				Listing:      s.ListEntryMap[np],
+				Listing:      s.NodePathLinkMap[np],
 				Filename:     np.Base(),
 				Description:  entry.Metadata.Description,
 				Tags:         entry.Metadata.Tags,

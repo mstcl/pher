@@ -102,7 +102,7 @@ func Handler() error {
 
 	// TODO: refactor
 	// update the state with file listings, like backlinks and similar entries
-	if err := populateNodesListEntry(&s, logger); err != nil {
+	if err := populateNodePathLinks(&s, logger); err != nil {
 		return err
 	}
 	logger.Info("created file index")

@@ -1,8 +1,9 @@
-package listentry
+package nodepathlink
 
 import "html/template"
 
-// A listing (widely used: e.g. entry archive, links, etc.)
+// A nodepath link is a link to another nodegroup or node
+// Each nodegroup/node has its a list of nodepath links
 //
 // * Href: target link
 //
@@ -13,7 +14,7 @@ import "html/template"
 // * IsDir: source is directory or not
 //
 // The rest are for Log View, similar to render.RenderData
-type ListEntry struct {
+type NodePathLink struct {
 	Body               template.HTML
 	Href               string
 	Title              string

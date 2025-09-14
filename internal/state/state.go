@@ -5,9 +5,9 @@ import (
 
 	"github.com/mstcl/pher/v2/internal/assetpath"
 	"github.com/mstcl/pher/v2/internal/config"
-	"github.com/mstcl/pher/v2/internal/listentry"
 	"github.com/mstcl/pher/v2/internal/node"
 	"github.com/mstcl/pher/v2/internal/nodepath"
+	"github.com/mstcl/pher/v2/internal/nodepathlink"
 	"github.com/mstcl/pher/v2/internal/tag"
 )
 
@@ -18,7 +18,7 @@ type State struct {
 	UserAssetMap             map[assetpath.AssetPath]bool
 	SkippedNodePathMap       map[nodepath.NodePath]bool
 	NodegroupWithoutIndexMap map[nodepath.NodePath]bool
-	ListEntryMap             map[nodepath.NodePath][]listentry.ListEntry
+	NodePathLinkMap          map[nodepath.NodePath][]nodepathlink.NodePathLink
 	InputDir                 string
 	OutputDir                string
 	ConfigFile               string
@@ -33,7 +33,7 @@ func Init() State {
 	return State{
 		NodeMap:            make(map[nodepath.NodePath]node.Node),
 		UserAssetMap:       make(map[assetpath.AssetPath]bool),
-		ListEntryMap:       make(map[nodepath.NodePath][]listentry.ListEntry),
+		NodePathLinkMap:    make(map[nodepath.NodePath][]nodepathlink.NodePathLink),
 		SkippedNodePathMap: make(map[nodepath.NodePath]bool),
 		NodeTags:           []tag.Tag{},
 	}

@@ -9,20 +9,21 @@ import (
 
 	"github.com/mattn/go-zglob"
 	"github.com/mstcl/pher/v2/internal/convert"
-	"github.com/mstcl/pher/v2/internal/listentry"
 	"github.com/mstcl/pher/v2/internal/metadata"
 	"github.com/mstcl/pher/v2/internal/nodepath"
+	"github.com/mstcl/pher/v2/internal/nodepathlink"
 	"github.com/mstcl/pher/v2/internal/state"
 )
 
-type populateNodesListEntryHelperInput struct {
+type populateNodePathLinksHelperInput struct {
 	nodegroup        string
 	childrenNodePath []nodepath.NodePath
 }
 
-// populateNodesListEntry finds all nodegroups. For each of them, find the
-// children nodes, and calls populateNodesListEntryHelper() on children nodes
-// to populate the children nodes' list entry.
+// populateNodePathLinks finds all nodegroups. For each of them, find the children
+// nodepaths (can either be nodes or nodegroups), and calls
+// populateNodesListEntryHelper() on children nodepaths to populate the
+// children's nodepath links
 //
 // * listing: listing entries of parents.
 //
@@ -30,7 +31,7 @@ type populateNodesListEntryHelperInput struct {
 //
 // * skip: bool map of files that should not be rendered (because its parents
 // is displaying a log)
-func populateNodesListEntry(s *state.State, logger *slog.Logger) error {
+func populateNodePathLinks(s *state.State, logger *slog.Logger) error {
 	// Initialize missing map
 	s.NodegroupWithoutIndexMap = make(map[nodepath.NodePath]bool)
 
@@ -73,7 +74,7 @@ func populateNodesListEntry(s *state.State, logger *slog.Logger) error {
 			children = append(children, nodepath.NodePath(child))
 		}
 
-		if err := populateNodesListEntryHelper(s, &populateNodesListEntryHelperInput{
+		if err := populateNodePathLinksHelper(s, &populateNodePathLinksHelperInput{
 			nodegroup:        f,
 			childrenNodePath: children,
 		}, logger); err != nil {
@@ -113,12 +114,12 @@ func populateNodesListEntry(s *state.State, logger *slog.Logger) error {
 }
 
 // Sub-function to loop through depth 1 children inside the current parent
-// (parentDir) to populate and return the listing map, the missing map, and the
+// (parentDir) to populate and return the nodepathlink map, the missing map, and the
 // skip map. Additional calls constructListingEntry() to make individual listing
 // entry.
-func populateNodesListEntryHelper(
+func populateNodePathLinksHelper(
 	s *state.State,
-	i *populateNodesListEntryHelperInput,
+	i *populateNodePathLinksHelperInput,
 	logger *slog.Logger,
 ) error {
 	// Whether to render children
@@ -193,7 +194,7 @@ func populateNodesListEntryHelper(
 		}
 
 		// Prepare the listing
-		l := listentry.ListEntry{}
+		l := nodepathlink.NodePathLink{}
 
 		// Grab href target, different for file vs. dir
 		l.IsDir = IsDir
@@ -268,13 +269,13 @@ func populateNodesListEntryHelper(
 
 		// Append to listing map
 		if s.NodeMap[np].Metadata.Pinned {
-			s.ListEntryMap[nodegroupIndexPath] = append(
-				[]listentry.ListEntry{l},
-				s.ListEntryMap[nodegroupIndexPath]...)
+			s.NodePathLinkMap[nodegroupIndexPath] = append(
+				[]nodepathlink.NodePathLink{l},
+				s.NodePathLinkMap[nodegroupIndexPath]...)
 			continue
 		}
 
-		s.ListEntryMap[nodegroupIndexPath] = append(s.ListEntryMap[nodegroupIndexPath], l)
+		s.NodePathLinkMap[nodegroupIndexPath] = append(s.NodePathLinkMap[nodegroupIndexPath], l)
 	}
 
 	return nil

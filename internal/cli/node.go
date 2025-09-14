@@ -15,6 +15,9 @@ import (
 	"github.com/mstcl/pher/v2/internal/state"
 )
 
+// A node is an abstracted idea of a source markdown file. It is a file
+// represented in our state
+
 // Get all directories, and call listChildren() to populate the files within.
 //
 // * listing: listing entries of parents.
@@ -23,7 +26,7 @@ import (
 //
 // * skip: bool map of files that should not be rendered (because its parents
 // is displaying a log)
-func makeFileListing(s *state.State, logger *slog.Logger) error {
+func populateNodesListEntry(s *state.State, logger *slog.Logger) error {
 	// Initialize missing map
 	s.Missing = make(map[string]bool)
 
@@ -61,7 +64,7 @@ func makeFileListing(s *state.State, logger *slog.Logger) error {
 
 		child.Debug("found children files", slog.Any("files", children))
 
-		if err := makeFileListingHelper(s, &helperInput{
+		if err := populateNodesListeEntry(s, &helperInput{
 			parentDir: f,
 			files:     children,
 		}, logger); err != nil {
@@ -74,7 +77,7 @@ func makeFileListing(s *state.State, logger *slog.Logger) error {
 		entry := s.Entries[f]
 
 		// add index to our files to render
-		s.Files = append(s.Files, f)
+		s.Nodes = append(s.Nodes, f)
 		md := metadata.Default()
 
 		// we have inDir/a/b/c/index.md
@@ -109,7 +112,7 @@ type helperInput struct {
 // (parentDir) to populate and return the listing map, the missing map, and the
 // skip map. Additional calls constructListingEntry() to make individual listing
 // entry.
-func makeFileListingHelper(
+func populateNodesListeEntry(
 	s *state.State,
 	i *helperInput,
 	logger *slog.Logger,

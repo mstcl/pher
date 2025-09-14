@@ -30,7 +30,7 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 	tagsListing := make(map[string][]listentry.ListEntry)
 
 	// First loop, can do most things
-	for _, f := range s.Files {
+	for _, f := range s.Nodes {
 		child := logger.With(
 			slog.String("filepath", f),
 			slog.String("context", "extracting extras"),
@@ -180,7 +180,7 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 	//
 	// NOTE: Entries that share tags are related
 	// Hence dependent on tags listing (tl)
-	for _, f := range s.Files {
+	for _, f := range s.Nodes {
 		child := logger.With(
 			slog.String("filepath", f),
 			slog.String("context", "extracting extras"),

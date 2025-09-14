@@ -20,7 +20,7 @@ type State struct {
 	InDir       string
 	OutDir      string
 	ConfigFile  string
-	Files       []string
+	Nodes       []string
 	Tags        []tag.Tag
 	ShowVersion bool
 	Debug       bool

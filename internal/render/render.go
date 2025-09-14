@@ -87,7 +87,7 @@ func Render(ctx context.Context, s *state.State, logger *slog.Logger) error {
 
 	eg, _ := errgroup.WithContext(ctx)
 
-	for _, f := range s.Files {
+	for _, f := range s.Nodes {
 		child := logger.With(slog.String("filepath", f), slog.String("context", "templating"))
 
 		child.Debug("submitting goroutine")

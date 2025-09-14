@@ -24,19 +24,19 @@ func createDir(dir string) error {
 	return nil
 }
 
-// getSrcFiles return the files we need to process by recursively glob for all
-// markdown files, then run sanitizeSrcFiles on them
-func getSrcFiles(inputDir string, logger *slog.Logger) ([]string, error) {
-	files, err := zglob.Glob(filepath.Join(inputDir, "**", "*.md"))
+// getNodeFiles return the nodes we need to process by recursively glob for all
+// markdown files, then run sanitizeNodeFiles() on them
+func getNodeFiles(inputDir string, logger *slog.Logger) ([]string, error) {
+	nodes, err := zglob.Glob(filepath.Join(inputDir, "**", "*.md"))
 	if err != nil {
 		return nil, fmt.Errorf("glob files: %w", err)
 	}
 
 	// sanitize files found
-	files = sanitizeSrcFiles(files, logger)
-	logger.Debug("sanitized source files", slog.Any("paths", files))
+	nodes = sanitizeNodeFiles(nodes, logger)
+	logger.Debug("sanitized source files", slog.Any("paths", nodes))
 
-	return files, nil
+	return nodes, nil
 }
 
 // cleanOutput removes all files and directories in outputDir,

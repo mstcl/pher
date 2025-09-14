@@ -49,13 +49,14 @@ func sanitize(s *state.State, logger *slog.Logger) error {
 	return nil
 }
 
-// Move all index.md from files to the end so they are processed last
-func reorderFiles(files []string) []string {
+// reorderNodeFiles resorts nodes slice so that all group index are moved to the
+// end so they are processed last
+func reorderNodeFiles(nodes []string) []string {
 	var notIndex []string
 
 	var index []string
 
-	for _, i := range files {
+	for _, i := range nodes {
 		base := convert.FileBase(i)
 		if base == "index" {
 			index = append(index, i)
@@ -69,10 +70,10 @@ func reorderFiles(files []string) []string {
 }
 
 // dropHiddenFiles goes through files slice and drop those started with a dot
-func dropHiddenFiles(files []string) []string {
+func dropHiddenFiles(nodes []string) []string {
 	newFiles := []string{}
 
-	for _, f := range files {
+	for _, f := range nodes {
 		base := filepath.Base(f)
 		if strings.HasPrefix(base, ".") {
 			continue
@@ -84,14 +85,14 @@ func dropHiddenFiles(files []string) []string {
 	return newFiles
 }
 
-func sanitizeSrcFiles(files []string, logger *slog.Logger) []string {
+func sanitizeNodeFiles(nodes []string, logger *slog.Logger) []string {
 	// sanitize by removing all hidden files
-	files = dropHiddenFiles(files)
+	nodes = dropHiddenFiles(nodes)
 	logger.Debug("dropped hidden files")
 
 	// reorder the list so indexes are processed last
-	files = reorderFiles(files)
+	nodes = reorderNodeFiles(nodes)
 	logger.Debug("finalized list of files to process")
 
-	return files
+	return nodes
 }

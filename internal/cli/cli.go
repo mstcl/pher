@@ -87,11 +87,11 @@ func Handler() error {
 	logger.Debug("loaded and initialized templates")
 
 	// get source files from input directory
-	s.Files, err = getSrcFiles(s.InDir, logger)
+	s.Nodes, err = getNodeFiles(s.InDir, logger)
 	if err != nil {
 		return err
 	}
-	logger.Debug("found source files", slog.Any("paths", s.Files))
+	logger.Debug("found source files", slog.Any("paths", s.Nodes))
 
 	// TODO: refactor
 	// update the state with various metadata
@@ -102,7 +102,7 @@ func Handler() error {
 
 	// TODO: refactor
 	// update the state with file listings, like backlinks and similar entries
-	if err := makeFileListing(&s, logger); err != nil {
+	if err := populateNodesListEntry(&s, logger); err != nil {
 		return err
 	}
 	logger.Info("created file index")
@@ -115,7 +115,7 @@ func Handler() error {
 	logger.Info(
 		"completed",
 		slog.Duration("execution time", end),
-		slog.Int("number of files", len(s.Files)),
+		slog.Int("number of files", len(s.Nodes)),
 	)
 
 	return nil

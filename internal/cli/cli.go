@@ -86,7 +86,9 @@ func Handler() error {
 		return fmt.Errorf("os.MkdirAll %s: %w", s.OutDir, err)
 	}
 
-	// Read configuration
+	logger.Debug("created output directory", slog.String("dir", s.OutDir))
+
+	// parse configuration
 	s.Config, err = config.Read(s.ConfigFile)
 	if err != nil {
 		return err
@@ -94,29 +96,23 @@ func Handler() error {
 
 	logger.Debug("read configuration", slog.Any("config", s.Config))
 
-	// Clean output directory
+	// clean output directory
 	if !s.DryRun {
-		logger.Info("cleaning output directory")
+		exceptions := []string{relStaticOutputDir}
 
-		// TODO: update this so it ignores staticOutputDir
-		files, err := filepath.Glob(filepath.Join(s.OutDir, "/*"))
-		if err != nil {
-			return fmt.Errorf("filepath.Glob: %w", err)
+		if err := cleanOutputDir(s.OutDir, exceptions); err != nil {
+			return fmt.Errorf("clean output directory: %w", err)
 		}
 
-		if err = removeFiles(files); err != nil {
-			return fmt.Errorf("rm files: %w", err)
-		}
+		logger.Info("cleaned output directory", slog.Any("exceptions", exceptions))
 	} else {
-		logger.Debug("dry run: skipped cleaning output directory")
+		logger.Debug("dry run — skipped cleaning output directory")
 	}
 
-	// Initiate templates
-
-	// TODO: split this out to separate package
+	// initiate templates
 	funcMap := template.FuncMap{
 		"joinPath": path.Join,
-	}
+	} // TODO: split this out to separate package
 
 	tmpl := template.New("main")
 	tmpl = tmpl.Funcs(funcMap)
@@ -124,25 +120,28 @@ func Handler() error {
 
 	logger.Debug("loaded and initialized templates")
 
-	// Glob for markdown files and reorder so indexes are processed last
-	files, err := zglob.Glob(s.InDir + "/**/*.md")
+	// find the files we need to process by recursively glob for all markdown files
+	srcFiles, err := zglob.Glob(filepath.Join(s.InDir, "**", "*.md"))
 	if err != nil {
 		return fmt.Errorf("glob files: %w", err)
 	}
 
-	files = filterHiddenFiles(s.InDir, files)
-	s.Files = reorderFiles(files)
+	// sanitize by removing all hidden files
+	srcFiles = dropHiddenFiles(srcFiles)
+
+	// reorder the list so indexes are processed last
+	s.Files = reorderFiles(srcFiles)
 
 	logger.Debug("finalized list of files to process", slog.Any("files", s.Files))
 
-	// Update the state with various metadata
+	// update the state with various metadata
 	if err := extractExtras(&s, logger); err != nil {
 		return err
 	}
 
 	logger.Info("extracted metadata and file relations")
 
-	// Update the state with file listings, like backlinks and similar entries
+	// update the state with file listings, like backlinks and similar entries
 	if err := makeFileListing(&s, logger); err != nil {
 		return err
 	}
@@ -152,9 +151,9 @@ func Handler() error {
 	// NOTE: The next three processes can run concurrently as they are
 	// independent from each other
 
-	// Construct and render atom feeds
-	feedGroup, _ := errgroup.WithContext(context.Background())
-	feedGroup.Go(func() error {
+	// construct and render atom feeds
+	constructFeedGroup, _ := errgroup.WithContext(context.Background())
+	constructFeedGroup.Go(func() error {
 		atom, err := feed.Construct(&s, logger)
 		if err != nil {
 			return err
@@ -166,10 +165,10 @@ func Handler() error {
 
 	logger.Info("created atom feed")
 
-	// Copy asset dirs/files over to output directory
-	assetsMoveGroup, _ := errgroup.WithContext(context.Background())
-	assetsMoveGroup.Go(func() error {
-		if err := syncAssets(context.Background(), &s, logger); err != nil {
+	// copy asset dirs/files over to output directory
+	copyUserAssetsGroup, _ := errgroup.WithContext(context.Background())
+	copyUserAssetsGroup.Go(func() error {
+		if err := copyUserAssets(context.Background(), &s, logger); err != nil {
 			return err
 		}
 
@@ -179,9 +178,9 @@ func Handler() error {
 
 	logger.Info("synced user assets")
 
-	// Copy static content to the output directory
-	staticMoveGroup, _ := errgroup.WithContext(context.Background())
-	staticMoveGroup.Go(func() error {
+	// copy static content to the output directory
+	copyStaticGroup, _ := errgroup.WithContext(context.Background())
+	copyStaticGroup.Go(func() error {
 		if err := copyStatic(&s, logger); err != nil {
 			return err
 		}
@@ -192,7 +191,7 @@ func Handler() error {
 
 	logger.Info("copied static files")
 
-	// Create beautiful HTML
+	// render all markdown files
 	renderGroup, _ := errgroup.WithContext(context.Background())
 	renderGroup.Go(func() error {
 		return render.Render(context.Background(), &s, logger)
@@ -200,16 +199,16 @@ func Handler() error {
 
 	logger.Info("templated all source files")
 
-	// Wait for all goroutines to finish
-	if err := feedGroup.Wait(); err != nil {
+	// wait for all goroutines to finish
+	if err := constructFeedGroup.Wait(); err != nil {
 		return err
 	}
 
-	if err := assetsMoveGroup.Wait(); err != nil {
+	if err := copyUserAssetsGroup.Wait(); err != nil {
 		return err
 	}
 
-	if err := staticMoveGroup.Wait(); err != nil {
+	if err := copyStaticGroup.Wait(); err != nil {
 		return err
 	}
 
@@ -222,7 +221,7 @@ func Handler() error {
 	logger.Info(
 		"completed",
 		slog.Duration("execution time", end),
-		slog.Int("number of files", len(files)),
+		slog.Int("number of files", len(srcFiles)),
 	)
 
 	return nil
@@ -280,42 +279,4 @@ func createLogger(debug bool) *slog.Logger {
 		Level:      lvl,
 		TimeFormat: time.Kitchen,
 	}))
-}
-
-func sanitize(s *state.State, logger *slog.Logger) error {
-	var err error
-
-	// Sanitize configuration file
-	s.ConfigFile, err = filepath.Abs(s.ConfigFile)
-	if err != nil {
-		return fmt.Errorf("absolute path: %w", err)
-	}
-
-	// Check whether configuration file exists
-	_, err = os.Stat(s.ConfigFile)
-	if os.IsNotExist(err) {
-		return fmt.Errorf("missing: %s", s.ConfigFile)
-	} else if err != nil {
-		return fmt.Errorf("os.Stat %s: %w", s.ConfigFile, err)
-	}
-
-	logger.Debug("sanitized config file", slog.String("path", s.ConfigFile))
-
-	// Sanitize input directory
-	s.InDir, err = filepath.Abs(s.InDir)
-	if err != nil {
-		return fmt.Errorf("filepath.Abs: %w", err)
-	}
-
-	logger.Debug("sanitized input directory", slog.String("path", s.InDir))
-
-	// Sanitize output directory
-	s.OutDir, err = filepath.Abs(s.OutDir)
-	if err != nil {
-		return fmt.Errorf("filepath.Abs: %w", err)
-	}
-
-	logger.Debug("sanitized output directory", slog.String("path", s.OutDir))
-
-	return nil
 }

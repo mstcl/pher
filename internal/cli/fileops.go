@@ -44,39 +44,67 @@ func removeFiles(files []string) error {
 	return nil
 }
 
+// copyFile
+func copyFile(inPath string, outPath string, permission os.FileMode) error {
+	content, err := os.ReadFile(inPath)
+	if err != nil {
+		return fmt.Errorf("read file %s: %w", inPath, err)
+	}
+
+	if err = os.WriteFile(outPath, content, permission); err != nil {
+		return fmt.Errorf("write file %s: %w", outPath, err)
+	}
+
+	return nil
+}
+
+// mkdirIfNotExists takes in a directory path, checks if it exists, and
+// create it if not
+func mkdirIfNotExists(dir string) error {
+	if err := os.Mkdir(dir, 0o755); err == nil {
+		return nil
+	} else if os.IsExist(err) {
+		// check that the existing path is a directory
+		info, err := os.Stat(dir)
+		if err != nil {
+			return err
+		}
+
+		if !info.IsDir() {
+			return fmt.Errorf("%s exists but is not a directory", dir)
+		}
+
+		return nil
+	} else {
+		return fmt.Errorf("mkdir %s: %w", dir, err)
+	}
+}
+
 // Move extra files like assets (images, fonts, css) over to output, preserving
 // the file structure.
 func syncAssets(ctx context.Context, s *state.State, logger *slog.Logger) error {
 	eg, _ := errgroup.WithContext(ctx)
 
-	for f := range s.Assets {
-		f := f
-
-		child := logger.With(slog.String("filepath", f), slog.String("context", "copying asset"))
+	for assetPath := range s.Assets {
+		child := logger.With(
+			slog.String("filepath", assetPath),
+			slog.String("context", "copying asset"),
+		)
 
 		child.Debug("submitting goroutine")
 
 		eg.Go(func() error {
-			// want our assets to go from inDir/a/b/c/image.png -> outDir/a/b/c/image.png
-			rel, _ := filepath.Rel(s.InDir, f)
-			path := filepath.Join(s.OutDir, rel)
+			// NOTE: want our assets to go from inDir/a/b/c/image.png -> outDir/a/b/c/image.png
+			relToInputDir, _ := filepath.Rel(s.InDir, assetPath)
+			parentOutputDir := filepath.Join(s.OutDir, relToInputDir)
 
-			// Make dir on filesystem
-			if err := checks.DirExist(filepath.Dir(path)); err != nil {
-				return fmt.Errorf("make directory: %w", err)
+			// Make equivalent directory in output directory
+			if err := mkdirIfNotExists(filepath.Dir(parentOutputDir)); err != nil {
+				return err
 			}
 
-			// Copy from f to out
-			b, err := os.ReadFile(f)
-			if err != nil {
-				return fmt.Errorf("read file: %w", err)
-			}
-
-			if err = os.WriteFile(path, b, 0o644); err != nil {
-				return fmt.Errorf("write file: %w", err)
-			}
-
-			return nil
+			// Copy file to target directory
+			return copyFile(assetPath, parentOutputDir, 0o644)
 		})
 	}
 

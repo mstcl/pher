@@ -117,7 +117,7 @@ func Parse() error {
 		return fmt.Errorf("absolute path: %w", err)
 	}
 
-	if err = checks.DirExist(outDir); err != nil {
+	if err = mkdirIfNotExists(outDir); err != nil {
 		return fmt.Errorf("output directory: %w", err)
 	}
 
@@ -131,7 +131,7 @@ func Parse() error {
 		return fmt.Errorf("absolute path: %w", err)
 	}
 
-	if err = checks.DirExist(outDir); err != nil {
+	if err = mkdirIfNotExists(outDir); err != nil {
 		return fmt.Errorf("output directory: %w", err)
 	}
 

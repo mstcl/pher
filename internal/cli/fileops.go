@@ -58,28 +58,6 @@ func copyFile(inPath string, outPath string, permission os.FileMode) error {
 	return nil
 }
 
-// mkdirIfNotExists takes in a directory path, checks if it exists, and
-// create it if not
-func mkdirIfNotExists(dir string) error {
-	if err := os.Mkdir(dir, 0o755); err == nil {
-		return nil
-	} else if os.IsExist(err) {
-		// check that the existing path is a directory
-		info, err := os.Stat(dir)
-		if err != nil {
-			return err
-		}
-
-		if !info.IsDir() {
-			return fmt.Errorf("%s exists but is not a directory", dir)
-		}
-
-		return nil
-	} else {
-		return fmt.Errorf("mkdir %s: %w", dir, err)
-	}
-}
-
 // Move extra files like assets (images, fonts, css) over to output, preserving
 // the file structure.
 func syncAssets(ctx context.Context, s *state.State, logger *slog.Logger) error {
@@ -96,15 +74,16 @@ func syncAssets(ctx context.Context, s *state.State, logger *slog.Logger) error 
 		eg.Go(func() error {
 			// NOTE: want our assets to go from inDir/a/b/c/image.png -> outDir/a/b/c/image.png
 			relToInputDir, _ := filepath.Rel(s.InDir, assetPath)
-			parentOutputDir := filepath.Join(s.OutDir, relToInputDir)
+			outputPath := filepath.Join(s.OutDir, relToInputDir)
+			parentOutputDir := filepath.Dir(outputPath)
 
 			// Make equivalent directory in output directory
-			if err := mkdirIfNotExists(filepath.Dir(parentOutputDir)); err != nil {
-				return err
+			if err := os.MkdirAll(parentOutputDir, 0o755); err != nil {
+				return fmt.Errorf("os.MkdirAll %s: %v", parentOutputDir, err)
 			}
 
 			// Copy file to target directory
-			return copyFile(assetPath, parentOutputDir, 0o644)
+			return copyFile(assetPath, outputPath, 0o644)
 		})
 	}
 

@@ -2,7 +2,7 @@ export CGO_ENABLED := "0"
 
 # build locally
 build: tidy
-	go build -gcflags "-l" -ldflags "-w -s" -o pher main.go
+	go build -gcflags "-l" -ldflags "-w -s" .
 
 # run golangci-lint
 lint:

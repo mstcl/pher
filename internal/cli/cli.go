@@ -87,7 +87,7 @@ func Handler() error {
 	logger.Debug("loaded and initialized templates")
 
 	// get source files from input directory
-	s.NodePaths, err = getNodeFiles(s.InputDir, logger)
+	s.NodePaths, err = getNodePaths(s.InputDir, logger)
 	if err != nil {
 		return err
 	}

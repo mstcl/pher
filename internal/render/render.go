@@ -13,6 +13,7 @@ import (
 	"github.com/mstcl/pher/v2/internal/config"
 	"github.com/mstcl/pher/v2/internal/convert"
 	"github.com/mstcl/pher/v2/internal/listentry"
+	"github.com/mstcl/pher/v2/internal/nodepath"
 	"github.com/mstcl/pher/v2/internal/state"
 	"github.com/mstcl/pher/v2/internal/tag"
 	"golang.org/x/sync/errgroup"
@@ -87,20 +88,20 @@ func Render(ctx context.Context, s *state.State, logger *slog.Logger) error {
 
 	eg, _ := errgroup.WithContext(ctx)
 
-	for _, f := range s.NodePaths {
-		child := logger.With(slog.String("filepath", f), slog.String("context", "templating"))
+	for _, np := range s.NodePaths {
+		child := logger.With(slog.Any("nodepath", np), slog.String("context", "templating"))
 
 		child.Debug("submitting goroutine")
 
 		eg.Go(func() error {
 			// Don't render drafts or skipped files
-			entry := s.Nodes[f]
-			if entry.Metadata.Draft || s.Skip[f] {
+			entry := s.Nodes[np]
+			if entry.Metadata.Draft || s.Skip[np] {
 				return nil
 			}
 
 			// Get navigation crumbs
-			crumbsTitle, crumbsLink := convert.NavCrumbs(f, s.InputDir, s.Config.IsExt)
+			crumbsTitle, crumbsLink := convert.NavCrumbs(np, s.InputDir, s.Config.IsExt)
 
 			// Populate navigation crumbs
 			crumbs := []listentry.ListEntry{}
@@ -109,14 +110,14 @@ func Render(ctx context.Context, s *state.State, logger *slog.Logger) error {
 			}
 
 			// The output path outDir/{a/b/c/file}.html (part in curly brackets is the href)
-			outPath := s.OutputDir + convert.Href(f, s.InputDir, true) + ".html"
+			outPath := s.OutputDir + np.Href(s.InputDir, true) + ".html"
 
 			// Construct rendering data (entryData) from config, entry data, listing, nav
 			// crumbs, etc.
 			entryData := data{
 				OutFilename:  outPath,
-				Listing:      s.ListEntries[f],
-				Filename:     convert.FileBase(f),
+				Listing:      s.ListEntries[np],
+				Filename:     np.Base(),
 				Description:  entry.Metadata.Description,
 				Tags:         entry.Metadata.Tags,
 				TOC:          entry.Metadata.TOC,
@@ -158,7 +159,7 @@ func Render(ctx context.Context, s *state.State, logger *slog.Logger) error {
 			}
 
 			// Add tags only to root index
-			if f == s.InputDir+"/index.md" {
+			if np == nodepath.NodePath(filepath.Join(s.InputDir, "index.md")) {
 				entryData.TagsListing = s.NodeTags
 			}
 

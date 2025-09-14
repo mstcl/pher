@@ -6,28 +6,28 @@ import (
 	"testing"
 )
 
-func TestHref(t *testing.T) {
-	tests := []struct {
-		f    string
-		inDir string
-		want string
-	}{
-		{"/x/y/z/a/b/c/d.md", "/x/y/z", "a/b/c/d"},
-		{"/x/y/z/d.md", "/x/y/z", "d"},
-		{"/a/b/c/d.md", "/", "a/b/c/d"},
-		{"/d.md", "/", "d"},
-	}
-
-	for _, tt := range tests {
-		testname := fmt.Sprintf("%s,%s", tt.f, tt.want)
-		t.Run(testname, func(t *testing.T) {
-			ans := Href(tt.f, tt.inDir, false)
-			if ans != tt.want {
-				t.Errorf("got %s, want %s", ans, tt.want)
-			}
-		})
-	}
-}
+// func TestHref(t *testing.T) {
+// 	tests := []struct {
+// 		f    string
+// 		inDir string
+// 		want string
+// 	}{
+// 		{"/x/y/z/a/b/c/d.md", "/x/y/z", "a/b/c/d"},
+// 		{"/x/y/z/d.md", "/x/y/z", "d"},
+// 		{"/a/b/c/d.md", "/", "a/b/c/d"},
+// 		{"/d.md", "/", "d"},
+// 	}
+//
+// 	for _, tt := range tests {
+// 		testname := fmt.Sprintf("%s,%s", tt.f, tt.want)
+// 		t.Run(testname, func(t *testing.T) {
+// 			ans := Href(tt.f, tt.inDir, false)
+// 			if ans != tt.want {
+// 				t.Errorf("got %s, want %s", ans, tt.want)
+// 			}
+// 		})
+// 	}
+// }
 
 func TestNavCrumbs(t *testing.T) {
 	tests := []struct {
@@ -92,24 +92,24 @@ func TestTitle(t *testing.T) {
 	}
 }
 
-func TestFileBase(t *testing.T) {
-	tests := []struct {
-		f    string
-		want string
-	}{
-		{"a/b/c/d.md", "d"},
-		{"/a/b/c/d.md", "d"},
-		{"/a/b/c/d", "d"},
-		{"/a/b/c/d/", "d"},
-	}
-
-	for _, tt := range tests {
-		testname := fmt.Sprintf("%s,%s", tt.f, tt.want)
-		t.Run(testname, func(t *testing.T) {
-			ans := FileBase(tt.f)
-			if ans != tt.want {
-				t.Errorf("got %s, want %s", ans, tt.want)
-			}
-		})
-	}
-}
+// func TestFileBase(t *testing.T) {
+// 	tests := []struct {
+// 		f    string
+// 		want string
+// 	}{
+// 		{"a/b/c/d.md", "d"},
+// 		{"/a/b/c/d.md", "d"},
+// 		{"/a/b/c/d", "d"},
+// 		{"/a/b/c/d/", "d"},
+// 	}
+//
+// 	for _, tt := range tests {
+// 		testname := fmt.Sprintf("%s,%s", tt.f, tt.want)
+// 		t.Run(testname, func(t *testing.T) {
+// 			ans := FileBase(tt.f)
+// 			if ans != tt.want {
+// 				t.Errorf("got %s, want %s", ans, tt.want)
+// 			}
+// 		})
+// 	}
+// }

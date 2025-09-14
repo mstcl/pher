@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mstcl/pher/v2/internal/convert"
+	"github.com/mstcl/pher/v2/internal/nodepath"
 	"github.com/mstcl/pher/v2/internal/state"
 )
 
@@ -51,13 +51,12 @@ func sanitize(s *state.State, logger *slog.Logger) error {
 
 // reorderNodeFiles resorts nodes slice so that all group index are moved to the
 // end so they are processed last
-func reorderNodeFiles(nodes []string) []string {
-	var notIndex []string
+func reorderNodeFiles(nodepaths []nodepath.NodePath) []nodepath.NodePath {
+	var notIndex []nodepath.NodePath
+	var index []nodepath.NodePath
 
-	var index []string
-
-	for _, i := range nodes {
-		base := convert.FileBase(i)
+	for _, i := range nodepaths {
+		base := i.Base()
 		if base == "index" {
 			index = append(index, i)
 			continue
@@ -70,29 +69,29 @@ func reorderNodeFiles(nodes []string) []string {
 }
 
 // dropHiddenFiles goes through files slice and drop those started with a dot
-func dropHiddenFiles(nodes []string) []string {
-	newFiles := []string{}
+func dropHiddenFiles(nodepaths []nodepath.NodePath) []nodepath.NodePath {
+	newFiles := []nodepath.NodePath{}
 
-	for _, f := range nodes {
-		base := filepath.Base(f)
+	for _, np := range nodepaths {
+		base := filepath.Base(np.String())
 		if strings.HasPrefix(base, ".") {
 			continue
 		}
 
-		newFiles = append(newFiles, f)
+		newFiles = append(newFiles, np)
 	}
 
 	return newFiles
 }
 
-func sanitizeNodeFiles(nodes []string, logger *slog.Logger) []string {
+func sanitizeNodePaths(nodepaths []nodepath.NodePath, logger *slog.Logger) []nodepath.NodePath {
 	// sanitize by removing all hidden files
-	nodes = dropHiddenFiles(nodes)
+	nodepaths = dropHiddenFiles(nodepaths)
 	logger.Debug("dropped hidden files")
 
 	// reorder the list so indexes are processed last
-	nodes = reorderNodeFiles(nodes)
+	nodepaths = reorderNodeFiles(nodepaths)
 	logger.Debug("finalized list of files to process")
 
-	return nodes
+	return nodepaths
 }

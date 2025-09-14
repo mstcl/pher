@@ -8,15 +8,17 @@ import (
 	"path/filepath"
 
 	"github.com/mattn/go-zglob"
-	"github.com/mstcl/pher/v2/internal/checks"
 	"github.com/mstcl/pher/v2/internal/convert"
 	"github.com/mstcl/pher/v2/internal/listentry"
 	"github.com/mstcl/pher/v2/internal/metadata"
+	"github.com/mstcl/pher/v2/internal/nodepath"
 	"github.com/mstcl/pher/v2/internal/state"
 )
 
-// NOTE: a nodegroup is an abstracted idea of a directory with source markdown
-// files. A node's nodegroup is it's parent nodegroup.
+type populateNodesListEntryHelperInput struct {
+	nodegroup        string
+	childrenNodePath []nodepath.NodePath
+}
 
 // populateNodesListEntry finds all nodegroups. For each of them, find the
 // children nodes, and calls populateNodesListEntryHelper() on children nodes
@@ -30,7 +32,7 @@ import (
 // is displaying a log)
 func populateNodesListEntry(s *state.State, logger *slog.Logger) error {
 	// Initialize missing map
-	s.NodegroupsMissingIndex = make(map[string]bool)
+	s.NodegroupsMissingIndex = make(map[nodepath.NodePath]bool)
 
 	files, err := zglob.Glob(filepath.Join(s.InputDir, "**", "*"))
 	if err != nil {
@@ -59,16 +61,21 @@ func populateNodesListEntry(s *state.State, logger *slog.Logger) error {
 		}
 
 		// Glob under directory
-		children, err := filepath.Glob(f + "/*")
+		childrenRaw, err := filepath.Glob(f + "/*")
 		if err != nil {
 			return err
 		}
 
-		child.Debug("found children files", slog.Any("files", children))
+		child.Debug("found children files", slog.Any("files", childrenRaw))
 
-		if err := populateNodesListEntryHelper(s, &helperInput{
-			parentDir: f,
-			files:     children,
+		var children []nodepath.NodePath
+		for _, child := range childrenRaw {
+			children = append(children, nodepath.NodePath(child))
+		}
+
+		if err := populateNodesListEntryHelper(s, &populateNodesListEntryHelperInput{
+			nodegroup:        f,
+			childrenNodePath: children,
 		}, logger); err != nil {
 			return err
 		}
@@ -87,7 +94,7 @@ func populateNodesListEntry(s *state.State, logger *slog.Logger) error {
 		// i.e. title is the folder name
 
 		// inDir/a/b/c/index.md -> a/b/c/index.md
-		rel, _ := filepath.Rel(s.InputDir, f)
+		rel, _ := filepath.Rel(s.InputDir, f.String())
 
 		// a/b/c/index.md -> a/b/c -> a/b, c
 		_, dir := filepath.Split(filepath.Dir(rel))
@@ -105,30 +112,25 @@ func populateNodesListEntry(s *state.State, logger *slog.Logger) error {
 	return nil
 }
 
-type helperInput struct {
-	parentDir string
-	files     []string
-}
-
 // Sub-function to loop through depth 1 children inside the current parent
 // (parentDir) to populate and return the listing map, the missing map, and the
 // skip map. Additional calls constructListingEntry() to make individual listing
 // entry.
 func populateNodesListEntryHelper(
 	s *state.State,
-	i *helperInput,
+	i *populateNodesListEntryHelperInput,
 	logger *slog.Logger,
 ) error {
 	// Whether to render children
 	// Use source file as key for consistency
-	dirIndex := filepath.Join(i.parentDir, "index.md")
-	isLog := s.Nodes[dirIndex].Metadata.Layout == "log"
+	nodegroupIndexPath := nodepath.NodePath(filepath.Join(i.nodegroup, "index.md"))
+	isLog := s.Nodes[nodegroupIndexPath].Metadata.Layout == "log"
 
-	for _, f := range i.files {
-		child := logger.With(slog.String("filepath", f), slog.String("context", "child listing"))
+	for _, np := range i.childrenNodePath {
+		child := logger.With(slog.Any("filepath", np), slog.String("context", "child listing"))
 
 		// Stat files/directories
-		info, err := os.Stat(f)
+		info, err := os.Stat(np.String())
 		if err != nil {
 			return err
 		}
@@ -136,28 +138,28 @@ func populateNodesListEntryHelper(
 		IsDir := info.Mode().IsDir()
 
 		// Skip hidden files
-		if rel, _ := filepath.Rel(s.InputDir, f); rel[0] == 46 {
+		if rel, _ := filepath.Rel(s.InputDir, np.String()); rel[0] == 46 {
 			child.Debug("skipped hidden file")
 
 			continue
 		}
 
 		// Skip non-markdon files
-		if !IsDir && filepath.Ext(f) != ".md" {
+		if !IsDir && filepath.Ext(np.String()) != ".md" {
 			child.Debug("skipped non markdown file")
 
 			continue
 		}
 
 		// Skip index files, unlisted ones
-		if convert.FileBase(f) == "index" || s.Nodes[f].Metadata.Unlisted {
+		if np.Base() == "index" || s.Nodes[np].Metadata.Unlisted {
 			child.Debug("skip index files and unlisted files")
 
 			continue
 		}
 
 		// Don't render these files later
-		s.Skip[f] = isLog
+		s.Skip[np] = isLog
 
 		// Throw error if parent's view is Log but child is subdirectory
 		if IsDir && isLog {
@@ -166,25 +168,24 @@ func populateNodesListEntryHelper(
 			return err
 		}
 
-		// Skip directories without any entry (markdown files)
-		entryPresent, err := checks.EntryPresent(f)
+		// check if the nodepath is actually a node group
+		isNodeGroup, err := np.IsNodegroup()
 		if err != nil {
 			return err
 		}
 
-		if IsDir && !entryPresent {
+		if IsDir && !isNodeGroup {
 			child.Debug("empty directory found - skipping")
-
 			continue
 		}
 
 		// Append to missing index if index doesn't exist for a directory
 		if IsDir {
-			indexFile := filepath.Join(f, "/index.md")
+			indexFile := filepath.Join(np.String(), "/index.md")
 
 			_, err := os.Stat(indexFile)
 			if os.IsNotExist(err) {
-				s.NodegroupsMissingIndex[f+"/index.md"] = true
+				s.NodegroupsMissingIndex[np+"/index.md"] = true
 				child.Debug("index doesn't exist, added to missing index state")
 			} else if err != nil {
 				return fmt.Errorf("stat %s: %w", s.ConfigFile, err)
@@ -201,7 +202,7 @@ func populateNodesListEntryHelper(
 		// relevant rendering data fields like html body and tags for parents
 		// with log view configured.
 		if l.IsDir {
-			target, err := filepath.Rel(i.parentDir, f)
+			target, err := filepath.Rel(i.nodegroup, np.String())
 			if err != nil {
 				return err
 			}
@@ -214,9 +215,9 @@ func populateNodesListEntryHelper(
 
 			l.Href = target
 			// Switch target to index for title & description
-			f = filepath.Join(f, "index.md")
+			np = nodepath.NodePath(filepath.Join(np.String(), "index.md"))
 		} else {
-			target := convert.Href(f, i.parentDir, false)
+			target := np.Href(i.nodegroup, false)
 			if s.Config.IsExt {
 				target += ".html"
 			}
@@ -227,21 +228,21 @@ func populateNodesListEntryHelper(
 		// Grab titles and description.
 		// If metadata has title -> use that.
 		// If not -> use filename only if entry is not a directory
-		title := s.Nodes[f].Metadata.Title
+		title := s.Nodes[np].Metadata.Title
 		if len(title) > 0 {
 			l.Title = title
 		} else if !l.IsDir {
-			l.Title = convert.FileBase(f)
+			l.Title = np.Base()
 		}
 
-		l.Description = s.Nodes[f].Metadata.Description
+		l.Description = s.Nodes[np].Metadata.Description
 
 		// Log entries for log layout
 
 		if isLog {
-			l.Body = template.HTML(s.Nodes[f].Body)
+			l.Body = template.HTML(s.Nodes[np].Body)
 
-			date := s.Nodes[f].Metadata.Date
+			date := s.Nodes[np].Metadata.Date
 			if len(date) > 0 {
 				l.Date, l.MachineDate, err = convert.Date(date)
 				if err != nil {
@@ -249,7 +250,7 @@ func populateNodesListEntryHelper(
 				}
 			}
 
-			dateUpdated := s.Nodes[f].Metadata.DateUpdated
+			dateUpdated := s.Nodes[np].Metadata.DateUpdated
 			if len(dateUpdated) > 0 {
 				l.DateUpdated, l.MachineDateUpdated, err = convert.Date(dateUpdated)
 				if err != nil {
@@ -257,21 +258,23 @@ func populateNodesListEntryHelper(
 				}
 			}
 
-			l.Tags = s.Nodes[f].Metadata.Tags
+			l.Tags = s.Nodes[np].Metadata.Tags
 		}
 
 		// Now we act on the index files
 		if IsDir {
-			f += "/index.md"
+			np += "/index.md"
 		}
 
 		// Append to listing map
-		if s.Nodes[f].Metadata.Pinned {
-			s.ListEntries[dirIndex] = append([]listentry.ListEntry{l}, s.ListEntries[dirIndex]...)
+		if s.Nodes[np].Metadata.Pinned {
+			s.ListEntries[nodegroupIndexPath] = append(
+				[]listentry.ListEntry{l},
+				s.ListEntries[nodegroupIndexPath]...)
 			continue
 		}
 
-		s.ListEntries[dirIndex] = append(s.ListEntries[dirIndex], l)
+		s.ListEntries[nodegroupIndexPath] = append(s.ListEntries[nodegroupIndexPath], l)
 	}
 
 	return nil

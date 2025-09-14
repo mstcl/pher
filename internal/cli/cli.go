@@ -11,151 +11,83 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
+	"runtime/debug"
 	"time"
 
 	"github.com/lmittmann/tint"
 	"github.com/mattn/go-zglob"
 	"github.com/mstcl/pher/v2/internal/config"
+	"github.com/mstcl/pher/v2/internal/feed"
 	"github.com/mstcl/pher/v2/internal/render"
 	"github.com/mstcl/pher/v2/internal/state"
 	"golang.org/x/sync/errgroup"
-
-	"github.com/mstcl/pher/v2/internal/checks"
-	"github.com/mstcl/pher/v2/internal/feed"
 )
 
 const (
 	relTemplateDir     = "web/template"
 	relStaticDir       = "web/static"
 	relStaticOutputDir = "static"
-	version            = "v2.3.2"
 )
 
+var EmbedFS embed.FS
+
 var (
-	EmbedFS                   embed.FS
-	configFile, outDir, inDir string
-	dryRun                    bool
-	showVersion               bool
-	debug                     bool
+	Version    = "unknown"
+	GoVersion  = runtime.Version()
+	Revision   = "unknown"
+	BuildDate  time.Time
+	DirtyBuild = true
 )
 
 func Handler() error {
-	start := time.Now()
-
 	var err error
 
-	flag.BoolVar(
-		&showVersion,
-		"v",
-		false,
-		"Show version and exit",
-	)
+	start := time.Now() // start execution timer
 
-	flag.StringVar(
-		&configFile,
-		"c",
-		"config.yaml",
-		"Path to config file",
-	)
-	flag.StringVar(
-		&inDir,
-		"i",
-		".",
-		"Input directory",
-	)
-	flag.StringVar(
-		&outDir,
-		"o",
-		"_site",
-		"Output directory",
-	)
-	flag.BoolVar(
-		&dryRun,
-		"d",
-		false,
-		"Don't render (dry run)",
-	)
-	flag.BoolVar(
-		&debug,
-		"debug",
-		false,
-		"Verbose (debug) mode",
-	)
-	flag.Parse()
+	s := state.Init() // this is our lobal state
 
-	var lvl slog.Level
+	parseFlags(&s) // parse all our CLI flags here (onto the state)
 
-	if debug {
-		lvl = slog.LevelDebug
-	} else {
-		lvl = slog.LevelInfo
-	}
+	logger := createLogger(s.Debug) // create our "global" logger
 
-	logger := slog.New(tint.NewHandler(os.Stderr, &tint.Options{
-		Level:      lvl,
-		TimeFormat: time.Kitchen,
-	}))
+	initRuntimeInfo() // get global runtime info
+
+	logger.Debug(
+		"gathered runtime info",
+		slog.String("revision", Revision),
+		slog.String("version", Version),
+		slog.String("go_version", GoVersion),
+		slog.String("git_version", Version),
+		slog.Time("build_date", BuildDate),
+	)
 
 	logger.Debug("parsed flags",
-		slog.String("inDir", inDir),
-		slog.String("outDir", outDir),
-		slog.String("configFile", configFile),
-		slog.Bool("version", showVersion),
-		slog.Bool("dryRun", dryRun),
-		slog.Bool("debug", debug),
+		slog.String("inDir", s.InDir),
+		slog.String("outDir", s.OutDir),
+		slog.String("configFile", s.ConfigFile),
+		slog.Bool("version", s.ShowVersion),
+		slog.Bool("dryRun", s.DryRun),
+		slog.Bool("debug", s.Debug),
 	)
 
-	if showVersion {
-		fmt.Printf("pher %v\n", version)
+	// show version and exit if that's the case
+	if s.ShowVersion {
+		fmt.Printf("pher %v\n", Version)
 
 		return nil
 	}
 
-	// Global state
-	s := state.Init()
-	s.DryRun = dryRun
+	// sanitize paths
+	sanitize(&s, logger)
 
-	// Sanitize input directory
-	inDir, err = filepath.Abs(inDir)
-	if err != nil {
-		return fmt.Errorf("filepath.Abs: %w", err)
+	// create output directory
+	if err := os.MkdirAll(s.OutDir, 0o755); err != nil {
+		return fmt.Errorf("os.MkdirAll %s: %w", s.OutDir, err)
 	}
-
-	s.InDir = inDir
-
-	logger.Debug("sanitized input directory", slog.String("path", inDir))
-
-	// Sanitize output directory
-	outDir, err = filepath.Abs(outDir)
-	if err != nil {
-		return fmt.Errorf("filepath.Abs: %w", err)
-	}
-
-	// Create output directory
-	if err := os.MkdirAll(outDir, 0o755); err != nil {
-		return fmt.Errorf("os.MkdirAll %s: %w", outDir, err)
-	}
-
-	s.OutDir = outDir
-
-	logger.Debug("sanitized output directory", slog.String("path", outDir))
-
-	// Sanitize configuration file
-	configFile, err = filepath.Abs(configFile)
-	if err != nil {
-		return fmt.Errorf("absolute path: %w", err)
-	}
-
-	if fileExist, err := checks.FileExist(configFile); err != nil {
-		return fmt.Errorf("stat: %w", err)
-	} else if !fileExist {
-		return fmt.Errorf("missing: %s", configFile)
-	}
-
-	logger.Debug("sanitized config file", slog.String("path", configFile))
 
 	// Read configuration
-	s.Config, err = config.Read(configFile)
+	s.Config, err = config.Read(s.ConfigFile)
 	if err != nil {
 		return err
 	}
@@ -167,9 +99,9 @@ func Handler() error {
 		logger.Info("cleaning output directory")
 
 		// TODO: update this so it ignores staticOutputDir
-		files, err := filepath.Glob(outDir + "/*")
+		files, err := filepath.Glob(filepath.Join(s.OutDir, "/*"))
 		if err != nil {
-			return fmt.Errorf("glob files: %w", err)
+			return fmt.Errorf("filepath.Glob: %w", err)
 		}
 
 		if err = removeFiles(files); err != nil {
@@ -198,7 +130,7 @@ func Handler() error {
 		return fmt.Errorf("glob files: %w", err)
 	}
 
-	files = filterHiddenFiles(inDir, files)
+	files = filterHiddenFiles(s.InDir, files)
 	s.Files = reorderFiles(files)
 
 	logger.Debug("finalized list of files to process", slog.Any("files", s.Files))
@@ -292,6 +224,98 @@ func Handler() error {
 		slog.Duration("execution time", end),
 		slog.Int("number of files", len(files)),
 	)
+
+	return nil
+}
+
+// initRuntimeInfo grabs package info
+// stolen from https://www.piotrbelina.com/blog/go-build-info-debug-readbuildinfo-ldflags/
+func initRuntimeInfo() {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return
+	}
+
+	if info.Main.Version != "" {
+		Version = info.Main.Version
+	}
+
+	for _, kv := range info.Settings {
+		if kv.Value == "" {
+			continue
+		}
+		switch kv.Key {
+		case "vcs.revision":
+			Revision = kv.Value
+		case "vcs.time":
+			BuildDate, _ = time.Parse(time.RFC3339, kv.Value)
+		case "vcs.modified":
+			DirtyBuild = kv.Value == "true"
+		}
+	}
+}
+
+func parseFlags(s *state.State) {
+	flag.BoolVar(&s.ShowVersion, "v", false, "Show version and exit")
+	flag.BoolVar(&s.DryRun, "d", false, "Don't render (dry run)")
+	flag.BoolVar(&s.Debug, "debug", false, "Verbose (debug) mode")
+
+	flag.StringVar(&s.ConfigFile, "c", "config.yaml", "Path to config file")
+	flag.StringVar(&s.InDir, "i", ".", "Input directory")
+	flag.StringVar(&s.OutDir, "o", "_site", "Output directory")
+
+	flag.Parse()
+}
+
+func createLogger(debug bool) *slog.Logger {
+	var lvl slog.Level
+
+	if debug {
+		lvl = slog.LevelDebug
+	} else {
+		lvl = slog.LevelInfo
+	}
+
+	return slog.New(tint.NewHandler(os.Stderr, &tint.Options{
+		Level:      lvl,
+		TimeFormat: time.Kitchen,
+	}))
+}
+
+func sanitize(s *state.State, logger *slog.Logger) error {
+	var err error
+
+	// Sanitize configuration file
+	s.ConfigFile, err = filepath.Abs(s.ConfigFile)
+	if err != nil {
+		return fmt.Errorf("absolute path: %w", err)
+	}
+
+	// Check whether configuration file exists
+	_, err = os.Stat(s.ConfigFile)
+	if os.IsNotExist(err) {
+		return fmt.Errorf("missing: %s", s.ConfigFile)
+	} else if err != nil {
+		return fmt.Errorf("os.Stat %s: %w", s.ConfigFile, err)
+	}
+
+	logger.Debug("sanitized config file", slog.String("path", s.ConfigFile))
+
+	// Sanitize input directory
+	s.InDir, err = filepath.Abs(s.InDir)
+	if err != nil {
+		return fmt.Errorf("filepath.Abs: %w", err)
+	}
+
+	logger.Debug("sanitized input directory", slog.String("path", s.InDir))
+
+	// Sanitize output directory
+	s.OutDir, err = filepath.Abs(s.OutDir)
+	if err != nil {
+		return fmt.Errorf("filepath.Abs: %w", err)
+	}
+
+	logger.Debug("sanitized output directory", slog.String("path", s.OutDir))
 
 	return nil
 }

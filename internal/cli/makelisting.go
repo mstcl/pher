@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"html/template"
 	"log/slog"
 	"os"
@@ -172,17 +173,16 @@ func makeFileListingHelper(
 			continue
 		}
 
-		// Append to missing if index doesn't exist
+		// Append to missing index if index doesn't exist for a directory
 		if IsDir {
-			indexExists, err := checks.FileExist(f + "/index.md")
-			if err != nil {
-				return err
-			}
+			indexFile := filepath.Join(f, "/index.md")
 
-			if !indexExists {
-				child.Debug("index doesn't exist, adding to missing state")
-
+			_, err := os.Stat(indexFile)
+			if os.IsNotExist(err) {
 				s.Missing[f+"/index.md"] = true
+				child.Debug("index doesn't exist, added to missing index state")
+			} else if err != nil {
+				return fmt.Errorf("stat %s: %w", s.ConfigFile, err)
 			}
 		}
 

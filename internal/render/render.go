@@ -88,8 +88,6 @@ func Render(ctx context.Context, s *state.State, logger *slog.Logger) error {
 	eg, _ := errgroup.WithContext(ctx)
 
 	for _, f := range s.Files {
-		f := f
-
 		child := logger.With(slog.String("filepath", f), slog.String("context", "templating"))
 
 		child.Debug("submitting goroutine")
@@ -152,7 +150,9 @@ func Render(ctx context.Context, s *state.State, logger *slog.Logger) error {
 			}
 
 			// Use data updated only if given
-			entryData.DateUpdated, entryData.MachineDateUpdated, err = convert.Date(entry.Metadata.DateUpdated)
+			entryData.DateUpdated, entryData.MachineDateUpdated, err = convert.Date(
+				entry.Metadata.DateUpdated,
+			)
 			if err != nil {
 				return err
 			}

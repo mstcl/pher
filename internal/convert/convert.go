@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// Return the href
+// Href function returns the href, which is defined as follows:
 // inDir/a/b/c/file.md -> a/b/c/file
 func Href(f string, inDir string, prefixSlash bool) string {
 	// inDir/a/b/c/file.md -> a/b/c/file.md
@@ -24,7 +24,7 @@ func Href(f string, inDir string, prefixSlash bool) string {
 	return href
 }
 
-// Resolve the date d from format YYYY-MM-DD
+// Date function resolves the date d (format YYYY-MM-DD)
 // Returns a pretty date and a machine date
 func Date(date string) (string, string, error) {
 	if len(date) == 0 {
@@ -39,7 +39,8 @@ func Date(date string) (string, string, error) {
 	return dateTime.Format("02 Jan 2006"), dateTime.Format(time.RFC3339), nil
 }
 
-// If link is "/a/b/c/file.md"
+// NavCrumbs returns navigation components
+// If link is "/a/b/c/file.md", then:
 //
 // crumbsTitle: {"a", "b", "c"}
 //
@@ -71,7 +72,7 @@ func NavCrumbs(f string, inDir string, isExt bool) ([]string, []string) {
 	return crumbsTitle[:len(crumbsTitle)-1], crumbsLink
 }
 
-// Return title mt else fn
+// Title returns title from metadata else from filename
 func Title(metadataTitle string, filename string) string {
 	var title string
 	if len(metadataTitle) > 0 {
@@ -83,7 +84,7 @@ func Title(metadataTitle string, filename string) string {
 	return title
 }
 
-// Given /path/to/filename.ext, return filename
+// FileBase given a path /path/to/filename.ext, returns filename
 func FileBase(f string) string {
 	fn := filepath.Base(f)
 	return strings.TrimSuffix(fn, filepath.Ext(fn))

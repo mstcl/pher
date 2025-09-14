@@ -31,7 +31,10 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 
 	// First loop, can do most things
 	for _, f := range s.Files {
-		child := logger.With(slog.String("filepath", f), slog.String("context", "extracting extras"))
+		child := logger.With(
+			slog.String("filepath", f),
+			slog.String("context", "extracting extras"),
+		)
 
 		entry := s.Entries[f]
 
@@ -164,7 +167,11 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 			})
 		}
 
-		child.Debug("updated tags", slog.Any("tagsCount", tagsCount), slog.Any("tagsListing", tagsListing))
+		child.Debug(
+			"updated tags",
+			slog.Any("tagsCount", tagsCount),
+			slog.Any("tagsListing", tagsListing),
+		)
 	}
 
 	logger.Debug("proceeding to second loop")
@@ -174,7 +181,10 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 	// NOTE: Entries that share tags are related
 	// Hence dependent on tags listing (tl)
 	for _, f := range s.Files {
-		child := logger.With(slog.String("filepath", f), slog.String("context", "extracting extras"))
+		child := logger.With(
+			slog.String("filepath", f),
+			slog.String("context", "extracting extras"),
+		)
 
 		entry := s.Entries[f]
 		if entry.Metadata.Draft || len(entry.Metadata.Tags) == 0 {

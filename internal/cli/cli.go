@@ -1,3 +1,4 @@
+// Package cli [TODO]
 package cli
 
 import (
@@ -8,6 +9,7 @@ import (
 	"html/template"
 	"log/slog"
 	"os"
+	"path"
 	"path/filepath"
 	"time"
 
@@ -37,7 +39,7 @@ var (
 	debug                     bool
 )
 
-func Parse() error {
+func Handler() error {
 	start := time.Now()
 
 	var err error
@@ -109,7 +111,7 @@ func Parse() error {
 		return nil
 	}
 
-	// This is pher's s
+	// Global state
 	s := state.Init()
 	s.DryRun = dryRun
 
@@ -131,7 +133,7 @@ func Parse() error {
 
 	// Create output directory
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
-		return fmt.Errorf("os.MkdirAll %s: %v", outDir, err)
+		return fmt.Errorf("os.MkdirAll %s: %w", outDir, err)
 	}
 
 	s.OutDir = outDir
@@ -174,7 +176,7 @@ func Parse() error {
 			return fmt.Errorf("rm files: %w", err)
 		}
 	} else {
-		logger.Debug("dry run on: skipped cleaning output directory")
+		logger.Debug("dry run: skipped cleaning output directory")
 	}
 
 	// Initiate templates
@@ -190,7 +192,7 @@ func Parse() error {
 
 	logger.Debug("loaded and initialized templates")
 
-	// Grab files and reorder so indexes are processed last
+	// Glob for markdown files and reorder so indexes are processed last
 	files, err := zglob.Glob(s.InDir + "/**/*.md")
 	if err != nil {
 		return fmt.Errorf("glob files: %w", err)
@@ -201,26 +203,24 @@ func Parse() error {
 
 	logger.Debug("finalized list of files to process", slog.Any("files", s.Files))
 
-	logger.Info("extracting metadata and file relations")
-
 	// Update the state with various metadata
 	if err := extractExtras(&s, logger); err != nil {
 		return err
 	}
 
-	logger.Info("creating file listings")
+	logger.Info("extracted metadata and file relations")
 
 	// Update the state with file listings, like backlinks and similar entries
 	if err := makeFileListing(&s, logger); err != nil {
 		return err
 	}
 
+	logger.Info("created file index")
+
 	// NOTE: The next three processes can run concurrently as they are
 	// independent from each other
 
 	// Construct and render atom feeds
-	logger.Info("creating atom feed")
-
 	feedGroup, _ := errgroup.WithContext(context.Background())
 	feedGroup.Go(func() error {
 		atom, err := feed.Construct(&s, logger)
@@ -231,6 +231,8 @@ func Parse() error {
 		return feed.Write(&s, atom)
 	},
 	)
+
+	logger.Info("created atom feed")
 
 	// Copy asset dirs/files over to output directory
 	assetsMoveGroup, _ := errgroup.WithContext(context.Background())
@@ -285,7 +287,11 @@ func Parse() error {
 
 	end := time.Since(start)
 
-	logger.Info("done", slog.Duration("execution time", end), slog.Int("number of files", len(files)))
+	logger.Info(
+		"completed",
+		slog.Duration("execution time", end),
+		slog.Int("number of files", len(files)),
+	)
 
 	return nil
 }

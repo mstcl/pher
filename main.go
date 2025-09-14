@@ -33,7 +33,7 @@ func main() {
 
 	cli.EmbedFS = fs
 
-	if err := cli.Parse(); err != nil {
+	if err := cli.Handler(); err != nil {
 		logger.Error(fmt.Sprintf("%v", err))
 
 		os.Exit(1)

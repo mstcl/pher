@@ -2,43 +2,71 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 
-	"github.com/mstcl/pher/v2/internal/convert"
+	"github.com/mattn/go-zglob"
 	"github.com/mstcl/pher/v2/internal/state"
 	"golang.org/x/sync/errgroup"
 )
 
-// Move all index.md from files to the end so they are processed last
-func reorderFiles(files []string) []string {
-	var notIndex []string
+func createDir(dir string) error {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("os.MkdirAll %s: %w", dir, err)
+	}
 
-	var index []string
+	return nil
+}
 
-	for _, i := range files {
-		base := convert.FileBase(i)
-		if base == "index" {
-			index = append(index, i)
+// getSrcFiles return the files we need to process by recursively glob for all
+// markdown files, then run sanitizeSrcFiles on them
+func getSrcFiles(inputDir string, logger *slog.Logger) ([]string, error) {
+	files, err := zglob.Glob(filepath.Join(inputDir, "**", "*.md"))
+	if err != nil {
+		return nil, fmt.Errorf("glob files: %w", err)
+	}
+
+	// sanitize files found
+	files = sanitizeSrcFiles(files, logger)
+	logger.Debug("sanitized source files", slog.Any("paths", files))
+
+	return files, nil
+}
+
+// cleanOutput removes all files and directories in outputDir,
+// except for the ones listed in the exceptions list.
+// WARN: on error keep deleting everything, and report errors at the end
+// this is to ensure a clean state.
+func cleanOutputDir(outputDir string, exceptions []string) error {
+	entries, err := os.ReadDir(outputDir)
+	if err != nil {
+		return fmt.Errorf("os.ReadDir %s: %w", outputDir, err)
+	}
+
+	var removeErrors []error
+	for _, entry := range entries {
+		// skip those in the exceptions
+		if slices.Contains(exceptions, entry.Name()) {
 			continue
 		}
 
-		notIndex = append(notIndex, i)
+		pathToRemove := filepath.Join(outputDir, entry.Name())
+		if err := os.RemoveAll(pathToRemove); err != nil {
+			removeErrors = append(
+				removeErrors,
+				fmt.Errorf("os.RemoveAll %s: %w", pathToRemove, err),
+			)
+		}
 	}
 
-	return append(notIndex, index...)
-}
-
-// Delete files
-func removeFiles(files []string) error {
-	for _, c := range files {
-		if err := os.RemoveAll(c); err != nil {
-			return fmt.Errorf("removing old output files: %w", err)
-		}
+	if len(removeErrors) > 0 {
+		return errors.Join(removeErrors...)
 	}
 
 	return nil
@@ -69,7 +97,7 @@ func copyFile(inPath string, outPath string, permission os.FileMode) error {
 
 // Move extra files like assets (images, fonts, css) over to output, preserving
 // the file structure.
-func syncAssets(ctx context.Context, s *state.State, logger *slog.Logger) error {
+func copyUserAssets(ctx context.Context, s *state.State, logger *slog.Logger) error {
 	eg, _ := errgroup.WithContext(ctx)
 
 	for assetPath := range s.Assets {
@@ -103,7 +131,7 @@ func syncAssets(ctx context.Context, s *state.State, logger *slog.Logger) error 
 func copyStatic(s *state.State, logger *slog.Logger) error {
 	outputDir := filepath.Join(s.OutDir, relStaticOutputDir)
 
-	// Make static directory in output directory
+	// make static directory in output directory
 	if err := os.MkdirAll(outputDir, 0o755); err != nil {
 		return fmt.Errorf("os.MkdirAll %s: %w", outputDir, err)
 	}
@@ -117,43 +145,42 @@ func copyStatic(s *state.State, logger *slog.Logger) error {
 
 	logger.Debug("created static subfilesystem", slog.String("dir", relStaticDir))
 
-	// Walk through all files and directories in the `staticFS`.
-	// Starting at the root of the sub-filesystem.
-	if err := fs.WalkDir(staticFS, ".", func(currentPath string, d fs.DirEntry, err error) error {
+	// walk through all files and directories in the `staticfs`.
+	// starting at the root of the sub-filesystem.
+	if err := fs.WalkDir(staticFS, ".", func(inputPath string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 
-		// Skip directories and only process files
+		// skip directories and only process files
 		if d.IsDir() {
 			return nil
 		}
 
-		// Construct the destination path for the file
-		outputPath := filepath.Join(outputDir, currentPath)
+		// construct the destination path for the file
+		outputPath := filepath.Join(outputDir, inputPath)
 		parentOutputDir := filepath.Dir(outputPath)
 
-		// Create the destination directory if it doesn't exist
+		// create the destination directory if it doesn't exist
 		if err := os.MkdirAll(parentOutputDir, 0o755); err != nil {
 			return fmt.Errorf("os.MkdirAll %s: %w", parentOutputDir, err)
 		}
 
-		// Open the source file from the embedded filesystem
-		srcFile, err := staticFS.Open(currentPath)
+		// open the input file from fs
+		inputFile, err := staticFS.Open(inputPath)
 		if err != nil {
 			return err
 		}
-		defer srcFile.Close()
+		defer inputFile.Close()
 
-		// Create the destination file
-		destFile, err := os.Create(outputPath)
+		// create output file and copy content from inputFile to outputFile
+		outputFile, err := os.Create(outputPath)
 		if err != nil {
 			return err
 		}
-		defer destFile.Close()
+		defer outputFile.Close()
 
-		// Copy the content
-		if _, err := io.Copy(destFile, srcFile); err != nil {
+		if _, err := io.Copy(outputFile, inputFile); err != nil {
 			return err
 		}
 
@@ -165,19 +192,4 @@ func copyStatic(s *state.State, logger *slog.Logger) error {
 	logger.Debug("walked static subfilesystem", slog.String("outputDir", outputDir))
 
 	return nil
-}
-
-// Filter hidden files from files
-func filterHiddenFiles(inDir string, files []string) []string {
-	newFiles := []string{}
-
-	for _, f := range files {
-		if rel, _ := filepath.Rel(inDir, f); rel[0] == 46 {
-			continue
-		}
-
-		newFiles = append(newFiles, f)
-	}
-
-	return newFiles
 }

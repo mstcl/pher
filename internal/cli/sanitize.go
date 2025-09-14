@@ -83,3 +83,15 @@ func dropHiddenFiles(files []string) []string {
 
 	return newFiles
 }
+
+func sanitizeSrcFiles(files []string, logger *slog.Logger) []string {
+	// sanitize by removing all hidden files
+	files = dropHiddenFiles(files)
+	logger.Debug("dropped hidden files")
+
+	// reorder the list so indexes are processed last
+	files = reorderFiles(files)
+	logger.Debug("finalized list of files to process")
+
+	return files
+}

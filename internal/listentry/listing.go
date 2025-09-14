@@ -1,4 +1,4 @@
-package listing
+package listentry
 
 import "html/template"
 
@@ -13,7 +13,7 @@ import "html/template"
 // * IsDir: source is directory or not
 //
 // The rest are for Log View, similar to render.RenderData
-type Listing struct {
+type ListEntry struct {
 	Body               template.HTML
 	Href               string
 	Title              string

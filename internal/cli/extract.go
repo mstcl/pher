@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/mstcl/pher/v2/internal/convert"
-	"github.com/mstcl/pher/v2/internal/listing"
+	"github.com/mstcl/pher/v2/internal/listentry"
 	"github.com/mstcl/pher/v2/internal/source"
 	"github.com/mstcl/pher/v2/internal/state"
 	"github.com/mstcl/pher/v2/internal/tag"
@@ -27,7 +27,7 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 	tagsCount := make(map[string]int)
 
 	// tagsListing: tags listing - files with this tag (key: tag name)
-	tagsListing := make(map[string][]listing.Listing)
+	tagsListing := make(map[string][]listentry.ListEntry)
 
 	// First loop, can do most things
 	for _, f := range s.Files {
@@ -141,7 +141,7 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 			linkedEntry := s.Entries[ref]
 			linkedEntry.Backlinks = append(
 				linkedEntry.Backlinks,
-				listing.Listing{
+				listentry.ListEntry{
 					Href:        href,
 					Title:       title,
 					Description: entry.Metadata.Description,
@@ -159,7 +159,7 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 		for _, v := range md.Tags {
 			tagsCount[v] += 1
 
-			tagsListing[v] = append(tagsListing[v], listing.Listing{
+			tagsListing[v] = append(tagsListing[v], listentry.ListEntry{
 				Href:        href,
 				Title:       title,
 				Description: entry.Metadata.Description,
@@ -192,10 +192,10 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 		}
 
 		// listings: all related links
-		listings := []listing.Listing{}
+		listings := []listentry.ListEntry{}
 
 		// relatedListings: unique related links
-		relatedListings := []listing.Listing{}
+		relatedListings := []listentry.ListEntry{}
 
 		// Get all files with similar tags
 		for _, t := range entry.Metadata.Tags {

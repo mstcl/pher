@@ -5,7 +5,7 @@ import (
 
 	"github.com/mstcl/pher/v2/internal/config"
 	"github.com/mstcl/pher/v2/internal/entry"
-	"github.com/mstcl/pher/v2/internal/listing"
+	"github.com/mstcl/pher/v2/internal/listentry"
 	"github.com/mstcl/pher/v2/internal/tag"
 )
 
@@ -16,7 +16,7 @@ type State struct {
 	Assets      map[string]bool
 	Skip        map[string]bool
 	Missing     map[string]bool
-	Listings    map[string][]listing.Listing
+	Listings    map[string][]listentry.ListEntry
 	InDir       string
 	OutDir      string
 	ConfigFile  string
@@ -31,7 +31,7 @@ func Init() State {
 	return State{
 		Entries:  make(map[string]entry.Entry),
 		Assets:   make(map[string]bool),
-		Listings: make(map[string][]listing.Listing),
+		Listings: make(map[string][]listentry.ListEntry),
 		Skip:     make(map[string]bool),
 		Tags:     []tag.Tag{},
 	}

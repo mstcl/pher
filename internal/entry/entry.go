@@ -1,7 +1,7 @@
 package entry
 
 import (
-	"github.com/mstcl/pher/v2/internal/listing"
+	"github.com/mstcl/pher/v2/internal/listentry"
 	"github.com/mstcl/pher/v2/internal/metadata"
 )
 
@@ -10,8 +10,8 @@ import (
 // share tags), and the href.
 type Entry struct {
 	Href         string
-	Backlinks    []listing.Listing
-	Relatedlinks []listing.Listing
+	Backlinks    []listentry.ListEntry
+	Relatedlinks []listentry.ListEntry
 	Body         []byte
 	ChromaCSS    []byte
 	Metadata     metadata.Metadata

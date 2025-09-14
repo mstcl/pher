@@ -11,9 +11,33 @@ import (
 	"path/filepath"
 	"slices"
 
+	"github.com/mattn/go-zglob"
 	"github.com/mstcl/pher/v2/internal/state"
 	"golang.org/x/sync/errgroup"
 )
+
+func createDir(dir string) error {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("os.MkdirAll %s: %w", dir, err)
+	}
+
+	return nil
+}
+
+// getSrcFiles return the files we need to process by recursively glob for all
+// markdown files, then run sanitizeSrcFiles on them
+func getSrcFiles(inputDir string, logger *slog.Logger) ([]string, error) {
+	files, err := zglob.Glob(filepath.Join(inputDir, "**", "*.md"))
+	if err != nil {
+		return nil, fmt.Errorf("glob files: %w", err)
+	}
+
+	// sanitize files found
+	files = sanitizeSrcFiles(files, logger)
+	logger.Debug("sanitized source files", slog.Any("paths", files))
+
+	return files, nil
+}
 
 // cleanOutput removes all files and directories in outputDir,
 // except for the ones listed in the exceptions list.

@@ -12,7 +12,7 @@ import (
 
 	"github.com/mstcl/pher/v2/internal/config"
 	"github.com/mstcl/pher/v2/internal/convert"
-	"github.com/mstcl/pher/v2/internal/listing"
+	"github.com/mstcl/pher/v2/internal/listentry"
 	"github.com/mstcl/pher/v2/internal/state"
 	"github.com/mstcl/pher/v2/internal/tag"
 	"golang.org/x/sync/errgroup"
@@ -46,7 +46,7 @@ type data struct {
 	Tags                                     []string
 	TagsListing                              []tag.Tag
 	Footer                                   []config.FooterLink
-	Backlinks, Relatedlinks, Crumbs, Listing []listing.Listing
+	Backlinks, Relatedlinks, Crumbs, Listing []listentry.ListEntry
 	TOC                                      bool
 	ShowHeader                               bool
 }
@@ -103,9 +103,9 @@ func Render(ctx context.Context, s *state.State, logger *slog.Logger) error {
 			crumbsTitle, crumbsLink := convert.NavCrumbs(f, s.InDir, s.Config.IsExt)
 
 			// Populate navigation crumbs
-			crumbs := []listing.Listing{}
+			crumbs := []listentry.ListEntry{}
 			for i, t := range crumbsTitle {
-				crumbs = append(crumbs, listing.Listing{Href: crumbsLink[i], Title: t})
+				crumbs = append(crumbs, listentry.ListEntry{Href: crumbsLink[i], Title: t})
 			}
 
 			// The output path outDir/{a/b/c/file}.html (part in curly brackets is the href)

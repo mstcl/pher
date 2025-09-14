@@ -10,7 +10,7 @@ import (
 	"github.com/mattn/go-zglob"
 	"github.com/mstcl/pher/v2/internal/checks"
 	"github.com/mstcl/pher/v2/internal/convert"
-	"github.com/mstcl/pher/v2/internal/listing"
+	"github.com/mstcl/pher/v2/internal/listentry"
 	"github.com/mstcl/pher/v2/internal/metadata"
 	"github.com/mstcl/pher/v2/internal/state"
 )
@@ -27,7 +27,7 @@ func makeFileListing(s *state.State, logger *slog.Logger) error {
 	// Initialize missing map
 	s.Missing = make(map[string]bool)
 
-	files, err := zglob.Glob(s.InDir + "/**/*")
+	files, err := zglob.Glob(filepath.Join(s.InDir, "**", "*"))
 	if err != nil {
 		return err
 	}
@@ -187,7 +187,7 @@ func makeFileListingHelper(
 		}
 
 		// Prepare the listing
-		l := listing.Listing{}
+		l := listentry.ListEntry{}
 
 		// Grab href target, different for file vs. dir
 		l.IsDir = IsDir
@@ -262,7 +262,7 @@ func makeFileListingHelper(
 
 		// Append to listing map
 		if s.Entries[f].Metadata.Pinned {
-			s.Listings[dirIndex] = append([]listing.Listing{l}, s.Listings[dirIndex]...)
+			s.Listings[dirIndex] = append([]listentry.ListEntry{l}, s.Listings[dirIndex]...)
 			continue
 		}
 

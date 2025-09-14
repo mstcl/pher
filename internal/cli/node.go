@@ -15,9 +15,6 @@ import (
 	"github.com/mstcl/pher/v2/internal/state"
 )
 
-// NOTE: A node is an abstracted idea of a source markdown file. It is a file
-// represented in our state
-
 // NOTE: a nodegroup is an abstracted idea of a directory with source markdown
 // files. A node's nodegroup is it's parent nodegroup.
 
@@ -79,7 +76,7 @@ func populateNodesListEntry(s *state.State, logger *slog.Logger) error {
 
 	// Update files
 	for f := range s.NodegroupsMissingIndex {
-		entry := s.Entries[f]
+		entry := s.Nodes[f]
 
 		// add index to our files to render
 		s.NodePaths = append(s.NodePaths, f)
@@ -102,7 +99,7 @@ func populateNodesListEntry(s *state.State, logger *slog.Logger) error {
 		entry.Metadata = *md
 
 		// update record
-		s.Entries[f] = entry
+		s.Nodes[f] = entry
 	}
 
 	return nil
@@ -125,7 +122,7 @@ func populateNodesListEntryHelper(
 	// Whether to render children
 	// Use source file as key for consistency
 	dirIndex := filepath.Join(i.parentDir, "index.md")
-	isLog := s.Entries[dirIndex].Metadata.Layout == "log"
+	isLog := s.Nodes[dirIndex].Metadata.Layout == "log"
 
 	for _, f := range i.files {
 		child := logger.With(slog.String("filepath", f), slog.String("context", "child listing"))
@@ -153,7 +150,7 @@ func populateNodesListEntryHelper(
 		}
 
 		// Skip index files, unlisted ones
-		if convert.FileBase(f) == "index" || s.Entries[f].Metadata.Unlisted {
+		if convert.FileBase(f) == "index" || s.Nodes[f].Metadata.Unlisted {
 			child.Debug("skip index files and unlisted files")
 
 			continue
@@ -230,21 +227,21 @@ func populateNodesListEntryHelper(
 		// Grab titles and description.
 		// If metadata has title -> use that.
 		// If not -> use filename only if entry is not a directory
-		title := s.Entries[f].Metadata.Title
+		title := s.Nodes[f].Metadata.Title
 		if len(title) > 0 {
 			l.Title = title
 		} else if !l.IsDir {
 			l.Title = convert.FileBase(f)
 		}
 
-		l.Description = s.Entries[f].Metadata.Description
+		l.Description = s.Nodes[f].Metadata.Description
 
 		// Log entries for log layout
 
 		if isLog {
-			l.Body = template.HTML(s.Entries[f].Body)
+			l.Body = template.HTML(s.Nodes[f].Body)
 
-			date := s.Entries[f].Metadata.Date
+			date := s.Nodes[f].Metadata.Date
 			if len(date) > 0 {
 				l.Date, l.MachineDate, err = convert.Date(date)
 				if err != nil {
@@ -252,7 +249,7 @@ func populateNodesListEntryHelper(
 				}
 			}
 
-			dateUpdated := s.Entries[f].Metadata.DateUpdated
+			dateUpdated := s.Nodes[f].Metadata.DateUpdated
 			if len(dateUpdated) > 0 {
 				l.DateUpdated, l.MachineDateUpdated, err = convert.Date(dateUpdated)
 				if err != nil {
@@ -260,7 +257,7 @@ func populateNodesListEntryHelper(
 				}
 			}
 
-			l.Tags = s.Entries[f].Metadata.Tags
+			l.Tags = s.Nodes[f].Metadata.Tags
 		}
 
 		// Now we act on the index files
@@ -269,7 +266,7 @@ func populateNodesListEntryHelper(
 		}
 
 		// Append to listing map
-		if s.Entries[f].Metadata.Pinned {
+		if s.Nodes[f].Metadata.Pinned {
 			s.ListEntries[dirIndex] = append([]listentry.ListEntry{l}, s.ListEntries[dirIndex]...)
 			continue
 		}

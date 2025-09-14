@@ -94,7 +94,7 @@ func Render(ctx context.Context, s *state.State, logger *slog.Logger) error {
 
 		eg.Go(func() error {
 			// Don't render drafts or skipped files
-			entry := s.Entries[f]
+			entry := s.Nodes[f]
 			if entry.Metadata.Draft || s.Skip[f] {
 				return nil
 			}

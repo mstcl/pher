@@ -36,7 +36,7 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 			slog.String("context", "extracting extras"),
 		)
 
-		entry := s.Entries[f]
+		entry := s.Nodes[f]
 
 		file, err := os.Open(f)
 		if err != nil {
@@ -106,7 +106,7 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 		entry.Body = rendered.HTML
 		entry.Href = href
 		entry.ChromaCSS = rendered.ChromaCSS
-		s.Entries[f] = entry
+		s.Nodes[f] = entry
 
 		// Update assets from internal links
 		for _, v := range links.InternalLinks {
@@ -138,7 +138,7 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 			ref += ".md"
 
 			// Save backlinks
-			linkedEntry := s.Entries[ref]
+			linkedEntry := s.Nodes[ref]
 			linkedEntry.Backlinks = append(
 				linkedEntry.Backlinks,
 				listentry.ListEntry{
@@ -148,7 +148,7 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 					IsDir:       isDir,
 				},
 			)
-			s.Entries[ref] = linkedEntry
+			s.Nodes[ref] = linkedEntry
 		}
 
 		child.Debug("updated assets and wiklinks from backlinks")
@@ -186,7 +186,7 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 			slog.String("context", "extracting extras"),
 		)
 
-		entry := s.Entries[f]
+		entry := s.Nodes[f]
 		if entry.Metadata.Draft || len(entry.Metadata.Tags) == 0 {
 			continue
 		}
@@ -225,7 +225,7 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 		child.Debug("extracted related links", slog.Any("relatedlinks", relatedListings))
 
 		// Update entry
-		s.Entries[f] = entry
+		s.Nodes[f] = entry
 	}
 
 	// Transform maps of tags count and tags listing to give a sorted slice of tags.

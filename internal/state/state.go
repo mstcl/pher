@@ -10,29 +10,29 @@ import (
 )
 
 type State struct {
-	Config      *config.Config
-	Templates   *template.Template
-	Entries     map[string]entry.Entry
-	Assets      map[string]bool
-	Skip        map[string]bool
-	Missing     map[string]bool
-	Listings    map[string][]listentry.ListEntry
-	InDir       string
-	OutDir      string
-	ConfigFile  string
-	Nodes       []string
-	Tags        []tag.Tag
-	ShowVersion bool
-	Debug       bool
-	DryRun      bool
+	Config                 *config.Config
+	Templates              *template.Template
+	Entries                map[string]entry.Entry
+	UserAssets             map[string]bool
+	Skip                   map[string]bool
+	NodegroupsMissingIndex map[string]bool
+	ListEntries            map[string][]listentry.ListEntry
+	InputDir               string
+	OutputDir              string
+	ConfigFile             string
+	NodePaths              []string
+	NodeTags               []tag.Tag
+	ShowVersion            bool
+	Debug                  bool
+	DryRun                 bool
 }
 
 func Init() State {
 	return State{
-		Entries:  make(map[string]entry.Entry),
-		Assets:   make(map[string]bool),
-		Listings: make(map[string][]listentry.ListEntry),
-		Skip:     make(map[string]bool),
-		Tags:     []tag.Tag{},
+		Entries:     make(map[string]entry.Entry),
+		UserAssets:  make(map[string]bool),
+		ListEntries: make(map[string][]listentry.ListEntry),
+		Skip:        make(map[string]bool),
+		NodeTags:    []tag.Tag{},
 	}
 }

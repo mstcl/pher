@@ -12,8 +12,8 @@ func parseFlags(s *state.State) {
 	flag.BoolVar(&s.Debug, "debug", false, "Verbose (debug) mode")
 
 	flag.StringVar(&s.ConfigFile, "c", "config.yaml", "Path to config file")
-	flag.StringVar(&s.InDir, "i", ".", "Input directory")
-	flag.StringVar(&s.OutDir, "o", "_site", "Output directory")
+	flag.StringVar(&s.InputDir, "i", ".", "Input directory")
+	flag.StringVar(&s.OutputDir, "o", "_site", "Output directory")
 
 	flag.Parse()
 }

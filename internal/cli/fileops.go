@@ -100,7 +100,7 @@ func copyFile(inPath string, outPath string, permission os.FileMode) error {
 func copyUserAssets(ctx context.Context, s *state.State, logger *slog.Logger) error {
 	eg, _ := errgroup.WithContext(ctx)
 
-	for assetPath := range s.Assets {
+	for assetPath := range s.UserAssets {
 		child := logger.With(
 			slog.String("filepath", assetPath),
 			slog.String("context", "copying asset"),
@@ -110,8 +110,8 @@ func copyUserAssets(ctx context.Context, s *state.State, logger *slog.Logger) er
 
 		eg.Go(func() error {
 			// NOTE: want our assets to go from inDir/a/b/c/image.png -> outDir/a/b/c/image.png
-			relToInputDir, _ := filepath.Rel(s.InDir, assetPath)
-			outputPath := filepath.Join(s.OutDir, relToInputDir)
+			relToInputDir, _ := filepath.Rel(s.InputDir, assetPath)
+			outputPath := filepath.Join(s.OutputDir, relToInputDir)
 			parentOutputDir := filepath.Dir(outputPath)
 
 			// Make equivalent directory in output directory
@@ -129,7 +129,7 @@ func copyUserAssets(ctx context.Context, s *state.State, logger *slog.Logger) er
 
 // copyStatic
 func copyStatic(s *state.State, logger *slog.Logger) error {
-	outputDir := filepath.Join(s.OutDir, relStaticOutputDir)
+	outputDir := filepath.Join(s.OutputDir, relStaticOutputDir)
 
 	// make static directory in output directory
 	if err := os.MkdirAll(outputDir, 0o755); err != nil {

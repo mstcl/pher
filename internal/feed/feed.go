@@ -66,7 +66,7 @@ func Write(s *state.State, atom string) error {
 
 	b := []byte(atom)
 
-	if err := os.WriteFile(s.OutDir+"/feed.xml", b, 0o644); err != nil {
+	if err := os.WriteFile(s.OutputDir+"/feed.xml", b, 0o644); err != nil {
 		return fmt.Errorf("writing article: %w", err)
 	}
 

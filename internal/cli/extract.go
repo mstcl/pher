@@ -30,7 +30,7 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 	tagsListing := make(map[string][]listentry.ListEntry)
 
 	// First loop, can do most things
-	for _, f := range s.Nodes {
+	for _, f := range s.NodePaths {
 		child := logger.With(
 			slog.String("filepath", f),
 			slog.String("context", "extracting extras"),
@@ -94,7 +94,7 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 		path := filepath.Dir(f)
 		base := convert.FileBase(f)
 		title := convert.Title(md.Title, base)
-		href := convert.Href(f, s.InDir, false)
+		href := convert.Href(f, s.InputDir, false)
 		isDir := base == "index"
 
 		if s.Config.IsExt {
@@ -116,10 +116,10 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 				return nil
 			}
 
-			s.Assets[ref] = true
+			s.UserAssets[ref] = true
 		}
 
-		child.Debug("updated assets with internal links paths", slog.Any("assets", s.Assets))
+		child.Debug("updated assets with internal links paths", slog.Any("assets", s.UserAssets))
 
 		// Update assets and wikilinks from backlinks
 		for _, v := range links.BackLinks {
@@ -132,7 +132,7 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 			// Process links with extensions as external files
 			// like images/gifs
 			if len(filepath.Ext(ref)) > 0 {
-				s.Assets[ref] = true
+				s.UserAssets[ref] = true
 			}
 
 			ref += ".md"
@@ -180,7 +180,7 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 	//
 	// NOTE: Entries that share tags are related
 	// Hence dependent on tags listing (tl)
-	for _, f := range s.Nodes {
+	for _, f := range s.NodePaths {
 		child := logger.With(
 			slog.String("filepath", f),
 			slog.String("context", "extracting extras"),
@@ -208,7 +208,7 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 
 		for _, l := range listings {
 			filename := strings.TrimSuffix(l.Href, filepath.Ext(l.Href))
-			if filepath.Join(s.InDir, filename) == strings.TrimSuffix(f, ".md") {
+			if filepath.Join(s.InputDir, filename) == strings.TrimSuffix(f, ".md") {
 				continue
 			}
 
@@ -242,9 +242,9 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 	for _, k := range keys {
 		tags = append(tags, tag.Tag{Name: k, Count: tagsCount[k], Links: tagsListing[k]})
 	}
-	s.Tags = append(s.Tags, tags...)
+	s.NodeTags = append(s.NodeTags, tags...)
 
-	logger.Debug("extracted tags", slog.Any("tags", s.Tags))
+	logger.Debug("extracted tags", slog.Any("tags", s.NodeTags))
 
 	return nil
 }

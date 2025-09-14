@@ -40,8 +40,8 @@ func Handler() error {
 	)
 
 	logger.Debug("parsed flags",
-		slog.String("inDir", s.InDir),
-		slog.String("outDir", s.OutDir),
+		slog.String("inDir", s.InputDir),
+		slog.String("outDir", s.OutputDir),
 		slog.String("configFile", s.ConfigFile),
 		slog.Bool("version", s.ShowVersion),
 		slog.Bool("dryRun", s.DryRun),
@@ -58,10 +58,10 @@ func Handler() error {
 	sanitize(&s, logger)
 
 	// create output directory
-	if err := createDir(s.OutDir); err != nil {
+	if err := createDir(s.OutputDir); err != nil {
 		return err
 	}
-	logger.Debug("created output directory", slog.String("dir", s.OutDir))
+	logger.Debug("created output directory", slog.String("dir", s.OutputDir))
 
 	// parse configuration
 	s.Config, err = config.Read(s.ConfigFile)
@@ -74,7 +74,7 @@ func Handler() error {
 	if !s.DryRun {
 		exceptions := []string{relStaticOutputDir}
 
-		if err := cleanOutputDir(s.OutDir, exceptions); err != nil {
+		if err := cleanOutputDir(s.OutputDir, exceptions); err != nil {
 			return err
 		}
 		logger.Info("cleaned output directory", slog.Any("exceptions", exceptions))
@@ -87,11 +87,11 @@ func Handler() error {
 	logger.Debug("loaded and initialized templates")
 
 	// get source files from input directory
-	s.Nodes, err = getNodeFiles(s.InDir, logger)
+	s.NodePaths, err = getNodeFiles(s.InputDir, logger)
 	if err != nil {
 		return err
 	}
-	logger.Debug("found source files", slog.Any("paths", s.Nodes))
+	logger.Debug("found source files", slog.Any("paths", s.NodePaths))
 
 	// TODO: refactor
 	// update the state with various metadata
@@ -115,7 +115,7 @@ func Handler() error {
 	logger.Info(
 		"completed",
 		slog.Duration("execution time", end),
-		slog.Int("number of files", len(s.Nodes)),
+		slog.Int("number of files", len(s.NodePaths)),
 	)
 
 	return nil

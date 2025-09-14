@@ -31,20 +31,20 @@ func sanitize(s *state.State, logger *slog.Logger) error {
 	logger.Debug("sanitized config file", slog.String("path", s.ConfigFile))
 
 	// Sanitize input directory
-	s.InDir, err = filepath.Abs(s.InDir)
+	s.InputDir, err = filepath.Abs(s.InputDir)
 	if err != nil {
 		return fmt.Errorf("filepath.Abs: %w", err)
 	}
 
-	logger.Debug("sanitized input directory", slog.String("path", s.InDir))
+	logger.Debug("sanitized input directory", slog.String("path", s.InputDir))
 
 	// Sanitize output directory
-	s.OutDir, err = filepath.Abs(s.OutDir)
+	s.OutputDir, err = filepath.Abs(s.OutputDir)
 	if err != nil {
 		return fmt.Errorf("filepath.Abs: %w", err)
 	}
 
-	logger.Debug("sanitized output directory", slog.String("path", s.OutDir))
+	logger.Debug("sanitized output directory", slog.String("path", s.OutputDir))
 
 	return nil
 }

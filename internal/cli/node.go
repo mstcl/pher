@@ -15,10 +15,15 @@ import (
 	"github.com/mstcl/pher/v2/internal/state"
 )
 
-// A node is an abstracted idea of a source markdown file. It is a file
+// NOTE: A node is an abstracted idea of a source markdown file. It is a file
 // represented in our state
 
-// Get all directories, and call listChildren() to populate the files within.
+// NOTE: a nodegroup is an abstracted idea of a directory with source markdown
+// files. A node's nodegroup is it's parent nodegroup.
+
+// populateNodesListEntry finds all nodegroups. For each of them, find the
+// children nodes, and calls populateNodesListEntryHelper() on children nodes
+// to populate the children nodes' list entry.
 //
 // * listing: listing entries of parents.
 //
@@ -28,14 +33,14 @@ import (
 // is displaying a log)
 func populateNodesListEntry(s *state.State, logger *slog.Logger) error {
 	// Initialize missing map
-	s.Missing = make(map[string]bool)
+	s.NodegroupsMissingIndex = make(map[string]bool)
 
-	files, err := zglob.Glob(filepath.Join(s.InDir, "**", "*"))
+	files, err := zglob.Glob(filepath.Join(s.InputDir, "**", "*"))
 	if err != nil {
 		return err
 	}
 
-	files = append(files, s.InDir)
+	files = append(files, s.InputDir)
 
 	logger.Debug("found files to process listing", slog.Any("files", files))
 
@@ -64,7 +69,7 @@ func populateNodesListEntry(s *state.State, logger *slog.Logger) error {
 
 		child.Debug("found children files", slog.Any("files", children))
 
-		if err := populateNodesListeEntry(s, &helperInput{
+		if err := populateNodesListEntryHelper(s, &helperInput{
 			parentDir: f,
 			files:     children,
 		}, logger); err != nil {
@@ -73,11 +78,11 @@ func populateNodesListEntry(s *state.State, logger *slog.Logger) error {
 	}
 
 	// Update files
-	for f := range s.Missing {
+	for f := range s.NodegroupsMissingIndex {
 		entry := s.Entries[f]
 
 		// add index to our files to render
-		s.Nodes = append(s.Nodes, f)
+		s.NodePaths = append(s.NodePaths, f)
 		md := metadata.Default()
 
 		// we have inDir/a/b/c/index.md
@@ -85,7 +90,7 @@ func populateNodesListEntry(s *state.State, logger *slog.Logger) error {
 		// i.e. title is the folder name
 
 		// inDir/a/b/c/index.md -> a/b/c/index.md
-		rel, _ := filepath.Rel(s.InDir, f)
+		rel, _ := filepath.Rel(s.InputDir, f)
 
 		// a/b/c/index.md -> a/b/c -> a/b, c
 		_, dir := filepath.Split(filepath.Dir(rel))
@@ -112,7 +117,7 @@ type helperInput struct {
 // (parentDir) to populate and return the listing map, the missing map, and the
 // skip map. Additional calls constructListingEntry() to make individual listing
 // entry.
-func populateNodesListeEntry(
+func populateNodesListEntryHelper(
 	s *state.State,
 	i *helperInput,
 	logger *slog.Logger,
@@ -134,7 +139,7 @@ func populateNodesListeEntry(
 		IsDir := info.Mode().IsDir()
 
 		// Skip hidden files
-		if rel, _ := filepath.Rel(s.InDir, f); rel[0] == 46 {
+		if rel, _ := filepath.Rel(s.InputDir, f); rel[0] == 46 {
 			child.Debug("skipped hidden file")
 
 			continue
@@ -182,7 +187,7 @@ func populateNodesListeEntry(
 
 			_, err := os.Stat(indexFile)
 			if os.IsNotExist(err) {
-				s.Missing[f+"/index.md"] = true
+				s.NodegroupsMissingIndex[f+"/index.md"] = true
 				child.Debug("index doesn't exist, added to missing index state")
 			} else if err != nil {
 				return fmt.Errorf("stat %s: %w", s.ConfigFile, err)
@@ -265,11 +270,11 @@ func populateNodesListeEntry(
 
 		// Append to listing map
 		if s.Entries[f].Metadata.Pinned {
-			s.Listings[dirIndex] = append([]listentry.ListEntry{l}, s.Listings[dirIndex]...)
+			s.ListEntries[dirIndex] = append([]listentry.ListEntry{l}, s.ListEntries[dirIndex]...)
 			continue
 		}
 
-		s.Listings[dirIndex] = append(s.Listings[dirIndex], l)
+		s.ListEntries[dirIndex] = append(s.ListEntries[dirIndex], l)
 	}
 
 	return nil

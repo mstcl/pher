@@ -87,7 +87,7 @@ func Render(ctx context.Context, s *state.State, logger *slog.Logger) error {
 
 	eg, _ := errgroup.WithContext(ctx)
 
-	for _, f := range s.Nodes {
+	for _, f := range s.NodePaths {
 		child := logger.With(slog.String("filepath", f), slog.String("context", "templating"))
 
 		child.Debug("submitting goroutine")
@@ -100,7 +100,7 @@ func Render(ctx context.Context, s *state.State, logger *slog.Logger) error {
 			}
 
 			// Get navigation crumbs
-			crumbsTitle, crumbsLink := convert.NavCrumbs(f, s.InDir, s.Config.IsExt)
+			crumbsTitle, crumbsLink := convert.NavCrumbs(f, s.InputDir, s.Config.IsExt)
 
 			// Populate navigation crumbs
 			crumbs := []listentry.ListEntry{}
@@ -109,13 +109,13 @@ func Render(ctx context.Context, s *state.State, logger *slog.Logger) error {
 			}
 
 			// The output path outDir/{a/b/c/file}.html (part in curly brackets is the href)
-			outPath := s.OutDir + convert.Href(f, s.InDir, true) + ".html"
+			outPath := s.OutputDir + convert.Href(f, s.InputDir, true) + ".html"
 
 			// Construct rendering data (entryData) from config, entry data, listing, nav
 			// crumbs, etc.
 			entryData := data{
 				OutFilename:  outPath,
-				Listing:      s.Listings[f],
+				Listing:      s.ListEntries[f],
 				Filename:     convert.FileBase(f),
 				Description:  entry.Metadata.Description,
 				Tags:         entry.Metadata.Tags,
@@ -158,8 +158,8 @@ func Render(ctx context.Context, s *state.State, logger *slog.Logger) error {
 			}
 
 			// Add tags only to root index
-			if f == s.InDir+"/index.md" {
-				entryData.TagsListing = s.Tags
+			if f == s.InputDir+"/index.md" {
+				entryData.TagsListing = s.NodeTags
 			}
 
 			// Render
@@ -190,8 +190,8 @@ func Render(ctx context.Context, s *state.State, logger *slog.Logger) error {
 		data: &data{
 			RootCrumb:   s.Config.RootCrumb,
 			Footer:      s.Config.Footer,
-			TagsListing: s.Tags,
-			OutFilename: s.OutDir + "/tags.html",
+			TagsListing: s.NodeTags,
+			OutFilename: s.OutputDir + "/tags.html",
 			Path:        s.Config.Path,
 		},
 	}); err != nil {

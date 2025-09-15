@@ -819,6 +819,11 @@ article h6 {
     padding-left: 2.5rem;
   }
 
+  .tags-page {
+    border: none;
+    padding-left: 0rem;
+  }
+
   .h-anchor {
     opacity: 0;
     display: flex;

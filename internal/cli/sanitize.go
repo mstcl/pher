@@ -68,20 +68,32 @@ func reorderNodeFiles(nodepaths []nodepath.NodePath) []nodepath.NodePath {
 	return append(notIndex, index...)
 }
 
-// dropHiddenFiles goes through files slice and drop those started with a dot
+// dropHiddenFiles drops files where any path component is hidden (starts with a dot).
 func dropHiddenFiles(nodepaths []nodepath.NodePath) []nodepath.NodePath {
-	newFiles := []nodepath.NodePath{}
+	var newFiles []nodepath.NodePath
 
 	for _, np := range nodepaths {
-		base := filepath.Base(np.String())
-		if strings.HasPrefix(base, ".") {
-			continue
+		if !isPathHidden(np.String()) {
+			newFiles = append(newFiles, np)
 		}
-
-		newFiles = append(newFiles, np)
 	}
 
 	return newFiles
+}
+
+// isPathHidden checks if any component of a path starts with a dot.
+func isPathHidden(p string) bool {
+	// split the path into components.
+	parts := strings.Split(p, string(filepath.Separator))
+
+	// iterate through each part and check for a leading dot.
+	for _, part := range parts {
+		if strings.HasPrefix(part, ".") && part != "." && part != ".." {
+			return true
+		}
+	}
+
+	return false
 }
 
 func sanitizeNodePaths(nodepaths []nodepath.NodePath, logger *slog.Logger) []nodepath.NodePath {

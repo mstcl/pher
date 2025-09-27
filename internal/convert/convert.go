@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mstcl/pher/v2/internal/nodepath"
+	"github.com/mstcl/pher/v3/internal/nodepath"
 )
 
 // Date function resolves the date d (format YYYY-MM-DD)

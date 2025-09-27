@@ -4,9 +4,9 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/mstcl/pher/v2/internal/feed"
-	"github.com/mstcl/pher/v2/internal/render"
-	"github.com/mstcl/pher/v2/internal/state"
+	"github.com/mstcl/pher/v3/internal/feed"
+	"github.com/mstcl/pher/v3/internal/render"
+	"github.com/mstcl/pher/v3/internal/state"
 	"golang.org/x/sync/errgroup"
 )
 

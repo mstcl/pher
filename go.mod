@@ -1,4 +1,4 @@
-module github.com/mstcl/pher/v2
+module github.com/mstcl/pher/v3
 
 go 1.24.0
 

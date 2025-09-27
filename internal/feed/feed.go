@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/mstcl/pher/v2/internal/state"
+	"github.com/mstcl/pher/v3/internal/state"
 )
 
 // Construct creates the RSS feed in memory

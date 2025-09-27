@@ -2,8 +2,8 @@
 package node
 
 import (
-	"github.com/mstcl/pher/v2/internal/metadata"
-	"github.com/mstcl/pher/v2/internal/nodepathlink"
+	"github.com/mstcl/pher/v3/internal/metadata"
+	"github.com/mstcl/pher/v3/internal/nodepathlink"
 )
 
 // Node is an abstracted idea of a source markdown file. It is a file

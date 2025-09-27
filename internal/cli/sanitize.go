@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mstcl/pher/v2/internal/nodepath"
-	"github.com/mstcl/pher/v2/internal/state"
+	"github.com/mstcl/pher/v3/internal/nodepath"
+	"github.com/mstcl/pher/v3/internal/state"
 )
 
 func sanitize(s *state.State, logger *slog.Logger) error {

@@ -4,12 +4,12 @@ package state
 import (
 	"html/template"
 
-	"github.com/mstcl/pher/v2/internal/assetpath"
-	"github.com/mstcl/pher/v2/internal/config"
-	"github.com/mstcl/pher/v2/internal/node"
-	"github.com/mstcl/pher/v2/internal/nodepath"
-	"github.com/mstcl/pher/v2/internal/nodepathlink"
-	"github.com/mstcl/pher/v2/internal/tag"
+	"github.com/mstcl/pher/v3/internal/assetpath"
+	"github.com/mstcl/pher/v3/internal/config"
+	"github.com/mstcl/pher/v3/internal/node"
+	"github.com/mstcl/pher/v3/internal/nodepath"
+	"github.com/mstcl/pher/v3/internal/nodepathlink"
+	"github.com/mstcl/pher/v3/internal/tag"
 )
 
 // State struct centralises all computed values so we can pass it into child

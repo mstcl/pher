@@ -8,13 +8,13 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mstcl/pher/v2/internal/assetpath"
-	"github.com/mstcl/pher/v2/internal/convert"
-	"github.com/mstcl/pher/v2/internal/nodepath"
-	"github.com/mstcl/pher/v2/internal/nodepathlink"
-	"github.com/mstcl/pher/v2/internal/source"
-	"github.com/mstcl/pher/v2/internal/state"
-	"github.com/mstcl/pher/v2/internal/tag"
+	"github.com/mstcl/pher/v3/internal/assetpath"
+	"github.com/mstcl/pher/v3/internal/convert"
+	"github.com/mstcl/pher/v3/internal/nodepath"
+	"github.com/mstcl/pher/v3/internal/nodepathlink"
+	"github.com/mstcl/pher/v3/internal/source"
+	"github.com/mstcl/pher/v3/internal/state"
+	"github.com/mstcl/pher/v3/internal/tag"
 )
 
 // Process files to build up the entry data for all files, the tags data, and

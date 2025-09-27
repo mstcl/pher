@@ -6,7 +6,7 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/mstcl/pher/v2/internal/state"
+	"github.com/mstcl/pher/v3/internal/state"
 )
 
 var EmbedFS embed.FS

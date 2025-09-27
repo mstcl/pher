@@ -12,8 +12,8 @@ import (
 	"slices"
 
 	"github.com/mattn/go-zglob"
-	"github.com/mstcl/pher/v2/internal/nodepath"
-	"github.com/mstcl/pher/v2/internal/state"
+	"github.com/mstcl/pher/v3/internal/nodepath"
+	"github.com/mstcl/pher/v3/internal/state"
 	"golang.org/x/sync/errgroup"
 )
 

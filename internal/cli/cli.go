@@ -7,8 +7,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/mstcl/pher/v2/internal/config"
-	"github.com/mstcl/pher/v2/internal/state"
+	"github.com/mstcl/pher/v3/internal/config"
+	"github.com/mstcl/pher/v3/internal/state"
 )
 
 const (

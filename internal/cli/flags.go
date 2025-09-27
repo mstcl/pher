@@ -3,7 +3,7 @@ package cli
 import (
 	"flag"
 
-	"github.com/mstcl/pher/v2/internal/state"
+	"github.com/mstcl/pher/v3/internal/state"
 )
 
 func parseFlags(s *state.State) {

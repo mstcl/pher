@@ -9,11 +9,11 @@ import (
 	"strings"
 
 	"github.com/mattn/go-zglob"
-	"github.com/mstcl/pher/v2/internal/convert"
-	"github.com/mstcl/pher/v2/internal/metadata"
-	"github.com/mstcl/pher/v2/internal/nodepath"
-	"github.com/mstcl/pher/v2/internal/nodepathlink"
-	"github.com/mstcl/pher/v2/internal/state"
+	"github.com/mstcl/pher/v3/internal/convert"
+	"github.com/mstcl/pher/v3/internal/metadata"
+	"github.com/mstcl/pher/v3/internal/nodepath"
+	"github.com/mstcl/pher/v3/internal/nodepathlink"
+	"github.com/mstcl/pher/v3/internal/state"
 )
 
 type populateNodePathLinksHelperInput struct {

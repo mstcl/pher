@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/lmittmann/tint"
-	"github.com/mstcl/pher/v2/internal/cli"
+	"github.com/mstcl/pher/v3/internal/cli"
 )
 
 //go:embed web/template/* web/static/*

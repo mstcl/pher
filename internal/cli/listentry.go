@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/mattn/go-zglob"
 	"github.com/mstcl/pher/v2/internal/convert"
@@ -60,7 +61,7 @@ func populateNodePathLinks(s *state.State, logger *slog.Logger) error {
 			continue
 		}
 
-		// Glob children of the nodepath
+		// Find immediate children of the nodepath
 		childrenRaw, err := filepath.Glob(filepath.Join(np.String(), "*"))
 		if err != nil {
 			return err
@@ -73,6 +74,7 @@ func populateNodePathLinks(s *state.State, logger *slog.Logger) error {
 			children = append(children, nodepath.NodePath(child))
 		}
 
+		// Run the helper on the parent and its chidlren
 		if err := populateNodePathLinksHelper(s, &populateNodePathLinksHelperInput{
 			parentNodePath:   np,
 			childrenNodePath: children,
@@ -113,24 +115,29 @@ func populateNodePathLinks(s *state.State, logger *slog.Logger) error {
 	return nil
 }
 
-// Sub-function to loop through depth 1 children inside the current parent
-// (parentDir) to populate and return the NodePathLinksMap, the
-// NodegroupWithoutIndexMap, and the SkippedNodePathMap.
-// TODO: refactor this
+// populateNodePathLinksHelper loops through all immediate children inside the
+// current parent (i.parentNodePath) to populate and return NodePathLinksMap,
+// NodegroupWithoutIndexMap, and SkippedNodePathMap.
 func populateNodePathLinksHelper(
 	s *state.State,
 	i *populateNodePathLinksHelperInput,
 	logger *slog.Logger,
 ) error {
-	// Whether to render children
-	// Use source file as key for consistency
+	// this is the nodegroup index path, we expect it to be at /path/to/nodegroup/index.md
 	nodegroupIndexPath := nodepath.NodePath(filepath.Join(i.parentNodePath.String(), "index.md"))
+
+	// is the parent nodegroup a log type? If so cache this because we will use
+	// it later on for further logic
 	isLog := s.NodeMap[nodegroupIndexPath].Metadata.Layout == "log"
 
+	// for each child, make some decisions
 	for _, np := range i.childrenNodePath {
-		child := logger.With(slog.Any("filepath", np), slog.String("context", "child listing"))
+		childLogger := logger.With(
+			slog.Any("filepath", np),
+			slog.String("context", "child listing"),
+		)
 
-		// Stat files/directories
+		// stat files/directories
 		info, err := os.Stat(np.String())
 		if err != nil {
 			return err
@@ -138,97 +145,127 @@ func populateNodePathLinksHelper(
 
 		IsDir := info.Mode().IsDir()
 
-		// Skip hidden files
-		if rel, _ := filepath.Rel(s.InputDir, np.String()); rel[0] == 46 {
-			child.Debug("skipped hidden file")
+		// begin filtering invalid/unwated files/directories and/or fast
+		// failing unexpected behaviour
+
+		// throw error if parent's view is log type but child is subdirectory
+		if IsDir && isLog {
+			childLogger.Error("found a directory in log parent -- this is unexpected")
+
+			return err
+		}
+
+		// if a nodegroup, skip if it's empty
+		if IsDir {
+			// check if the nodepath is actually a node group
+			nodegroupHasChildren, err := np.HasChildren()
+			if err != nil {
+				return err
+			}
+
+			if !nodegroupHasChildren {
+				childLogger.Debug("skipping empty directory found")
+
+				continue
+			}
+		}
+
+		// Skip hidden files/directories
+		relativePath, _ := filepath.Rel(s.InputDir, np.String())
+		if strings.HasPrefix(relativePath, ".") {
+			childLogger.Debug("skipping hidden file/directory")
 
 			continue
 		}
 
-		// Skip non-markdon files
-		if !IsDir && filepath.Ext(np.String()) != ".md" {
-			child.Debug("skipped non markdown file")
+		// Skip non-markdown files
+		fileExtension := filepath.Ext(np.String())
+		if !IsDir && fileExtension != ".md" {
+			childLogger.Debug("skipping non-markdown file")
 
 			continue
 		}
 
 		// Skip index files, unlisted ones
-		if np.Base() == "index" || s.NodeMap[np].Metadata.Unlisted {
-			child.Debug("skip index files and unlisted files")
+		if np.Base() == "index" {
+			childLogger.Debug("skipping index file")
 
 			continue
 		}
 
-		// Don't render these files later
+		if s.NodeMap[np].Metadata.Unlisted {
+			childLogger.Debug("skipping unlisted file")
+
+			continue
+		}
+
+		// checks complete, now we consider only files that are valid
+
+		// don't render these files later
 		s.SkippedNodePathMap[np] = isLog
 
-		// Throw error if parent's view is Log but child is subdirectory
-		if IsDir && isLog {
-			child.Error("found a directory in log parent - this is unexpected")
-
-			return err
-		}
-
-		// check if the nodepath is actually a node group
-		nodegroupHasChildren, err := np.HasChildren()
-		if err != nil {
-			return err
-		}
-
-		if IsDir && !nodegroupHasChildren {
-			child.Debug("empty directory found - skipping")
-			continue
-		}
-
-		// Append to missing index if index doesn't exist for a directory
+		// append to missing index if index doesn't exist for a directory
 		if IsDir {
-			indexFile := filepath.Join(np.String(), "/index.md")
+			indexFile := filepath.Join(np.String(), "index.md")
 
 			_, err := os.Stat(indexFile)
 			if os.IsNotExist(err) {
-				s.NodegroupWithoutIndexMap[np+"/index.md"] = true
-				child.Debug("index doesn't exist, added to missing index state")
+				s.NodegroupWithoutIndexMap[np+"/index.md"] = true // TODO: change the behaviour so we don't have to append the /index.md as the key
+
+				childLogger.Debug("index doesn't exist, added to missing index state")
 			} else if err != nil {
 				return fmt.Errorf("stat %s: %w", s.ConfigFile, err)
 			}
 		}
 
-		// Prepare the listing
+		// prepare the link
 		l := nodepathlink.NodePathLink{}
 
-		// Grab href target, different for file vs. dir
+		// grab href target, different for file vs. dir
 		l.IsDir = IsDir
 
-		// Construct the rest of the listing entry fields. Additionally add in
+		// construct the rest of the NodePathLink fields. Additionally add in
 		// relevant rendering data fields like html body and tags for parents
 		// with log view configured.
-		if l.IsDir {
-			target, err := filepath.Rel(i.parentNodePath.String(), np.String())
+		//
+		// we also update np in place as it will be used as the key in further
+		// maps, so that if it's a parent the key should have index.md at the
+		// end
+		if IsDir {
+			// isolate the directory name, this is the title and href
+			npName, err := filepath.Rel(i.parentNodePath.String(), np.String())
 			if err != nil {
 				return err
 			}
 
-			l.Title = target
+			l.Title = npName
 
 			if s.Config.IsExt {
-				target += "/index.html"
+				l.Href = filepath.Join(npName, "index.html")
+			} else {
+				l.Href = npName
 			}
 
-			l.Href = target
-			// Switch target to index for title & description
+			// switch nodegroup key to index for title & description
 			np = nodepath.NodePath(filepath.Join(np.String(), "index.md"))
+			childLogger.Debug(
+				"replaced nodegroup key with index path",
+				slog.String("np", np.String()),
+			)
 		} else {
-			target := np.Href(i.parentNodePath.String(), false)
-			if s.Config.IsExt {
-				target += ".html"
-			}
+			npName := np.Href(i.parentNodePath.String(), false)
 
-			l.Href = target
+			if s.Config.IsExt {
+				l.Href = npName + ".html"
+			} else {
+				l.Href = npName
+			}
 		}
 
-		// Grab titles and description.
-		// If metadata has title -> use that.
-		// If not -> use filename only if entry is not a directory
+		// grab nodepath title
+		// if metadata has title -> use that.
+		// if not -> use filename only if nodepath is not a directory
+		// as directory title is already set above
 		title := s.NodeMap[np].Metadata.Title
 		if len(title) > 0 {
 			l.Title = title
@@ -236,13 +273,14 @@ func populateNodePathLinksHelper(
 			l.Title = np.Base()
 		}
 
+		// grab nodepath description
 		l.Description = s.NodeMap[np].Metadata.Description
 
-		// Log entries for log layout
-
+		// handle log nodegroup logic
 		if isLog {
 			l.Body = template.HTML(s.NodeMap[np].Body)
 
+			// if date is present convert it
 			date := s.NodeMap[np].Metadata.Date
 			if len(date) > 0 {
 				l.Date, l.MachineDate, err = convert.Date(date)
@@ -251,6 +289,7 @@ func populateNodePathLinksHelper(
 				}
 			}
 
+			// if dateUpdated is present convert it
 			dateUpdated := s.NodeMap[np].Metadata.DateUpdated
 			if len(dateUpdated) > 0 {
 				l.DateUpdated, l.MachineDateUpdated, err = convert.Date(dateUpdated)
@@ -259,23 +298,20 @@ func populateNodePathLinksHelper(
 				}
 			}
 
+			// set link tags
 			l.Tags = s.NodeMap[np].Metadata.Tags
 		}
 
-		// Now we act on the index files
-		if IsDir {
-			np += "/index.md"
-		}
-
-		// Append to listing map
+		// if node is pinned we prepend it to the links map slice value, else we append it
 		if s.NodeMap[np].Metadata.Pinned {
 			s.NodePathLinksMap[nodegroupIndexPath] = append(
 				[]nodepathlink.NodePathLink{l},
 				s.NodePathLinksMap[nodegroupIndexPath]...)
-			continue
-		}
 
-		s.NodePathLinksMap[nodegroupIndexPath] = append(s.NodePathLinksMap[nodegroupIndexPath], l)
+			continue
+		} else {
+			s.NodePathLinksMap[nodegroupIndexPath] = append(s.NodePathLinksMap[nodegroupIndexPath], l)
+		}
 	}
 
 	return nil

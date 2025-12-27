@@ -3,7 +3,7 @@ package nodepathlink
 
 import "html/template"
 
-// A nodepath link is a link to another nodegroup or node
+// NodePathLink is a link to another nodegroup or node
 // Each nodegroup/node has its a list of nodepath links
 //
 // * Href: target link

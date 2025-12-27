@@ -1,4 +1,4 @@
-// Handle markdown source and helper methods
+// Package source handles markdown source and helper methods
 package source
 
 import (
@@ -39,7 +39,7 @@ type Rendered struct {
 	ChromaCSS []byte
 }
 
-// Parse metadata (frontmatter) from source b.
+// ExtractMetadata parses metadata (frontmatter) from source.
 func (s *Source) ExtractMetadata() (*metadata.Metadata, error) {
 	r := goldmark.New(goldmark.WithExtensions(&frontmatter.Extender{}))
 
@@ -51,8 +51,8 @@ func (s *Source) ExtractMetadata() (*metadata.Metadata, error) {
 	return md, nil
 }
 
-// Convert source b with renderer r to give html and Metadata.
-// Requires r to have the fronmatter extension.
+// Convert transforms source with renderer to give html and Metadata.
+// Requires renderer to have the fronmatter extension.
 func (s *Source) convert(r goldmark.Markdown) ([]byte, *metadata.Metadata, error) {
 	w := new(bytes.Buffer)
 
@@ -74,7 +74,7 @@ func (s *Source) convert(r goldmark.Markdown) ([]byte, *metadata.Metadata, error
 	return w.Bytes(), md, nil
 }
 
-// Read in b and parse body.
+// ToHTML reads in soure code and parse body.
 // Frontmatter is reprocessed to strip it.
 func (s *Source) ToHTML() (*Rendered, error) {
 	ext := []goldmark.Extender{
@@ -128,7 +128,7 @@ func (s *Source) ToHTML() (*Rendered, error) {
 	}, nil
 }
 
-// Parse b to find all other links within the document.
+// ExtractLinks walks through all files to collect links within the document.
 func (s *Source) ExtractLinks() (*Links, error) {
 	// internalLinks: internal links
 	var internalLinks []string

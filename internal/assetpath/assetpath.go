@@ -1,3 +1,4 @@
+// Package assetpath defines the assetpath type
 package assetpath
 
 type AssetPath string

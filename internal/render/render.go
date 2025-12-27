@@ -1,4 +1,4 @@
-// Render html according to html templates
+// Package render renders html according to html templates
 package render
 
 import (
@@ -19,7 +19,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// All fields used in the html templates.
+// data contains all fields used in the html templates.
 //
 // * Title: page title (set in title tags and in document)
 //

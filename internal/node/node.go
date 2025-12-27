@@ -1,3 +1,4 @@
+// Package node defines the Node struct
 package node
 
 import (

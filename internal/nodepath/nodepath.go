@@ -1,3 +1,4 @@
+// Package nodepath defines the NodeProup struct
 package nodepath
 
 import (
@@ -9,9 +10,8 @@ import (
 	"github.com/mattn/go-zglob"
 )
 
-// NOTE: a nodepath is the path of a nodegroup or node (note this
+// NodePath is the path of a nodegroup or node (note this
 // non-distinction)
-
 type NodePath string
 
 func (np NodePath) String() string {

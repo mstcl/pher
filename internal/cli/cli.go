@@ -1,4 +1,4 @@
-// Package cli [TODO]
+// Package cli is pher's entrypoint
 package cli
 
 import (

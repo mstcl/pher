@@ -1,3 +1,4 @@
+// Package feed handles RSS feed generation
 package feed
 
 import (
@@ -9,6 +10,7 @@ import (
 	"github.com/mstcl/pher/v2/internal/state"
 )
 
+// Construct creates the RSS feed in memory
 func Construct(s *state.State, logger *slog.Logger) (string, error) {
 	now := time.Now()
 
@@ -59,6 +61,7 @@ func Construct(s *state.State, logger *slog.Logger) (string, error) {
 	return atom, nil
 }
 
+// Write outputs the RSS feed to disk
 func Write(s *state.State, atom string) error {
 	if s.DryRun {
 		return nil

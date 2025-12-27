@@ -1,6 +1,7 @@
+// Package metadata defines available fields for the frontmatter
 package metadata
 
-// Allowed frontmatter in unmarshalled YAML.
+// Metadata contains allowed frontmatter in unmarshalled YAML.
 //
 // # Default values
 //
@@ -29,6 +30,7 @@ type Metadata struct {
 	ShowHeader  bool     `yaml:"showHeader"`
 }
 
+// Default returns the defaults for unspecified frontmatter field values
 func Default() *Metadata {
 	return &Metadata{
 		Pinned:     false,

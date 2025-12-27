@@ -1,3 +1,4 @@
+// Package state defines the asbstracted state struct
 package state
 
 import (
@@ -11,7 +12,8 @@ import (
 	"github.com/mstcl/pher/v2/internal/tag"
 )
 
-// State [TODO]
+// State struct centralises all computed values so we can pass it into child
+// functions with ease.
 //
 // * SkippedNodePathMap: map of NodePaths that shouldn't be rendered because its
 // nodegroup is of Log listing type.

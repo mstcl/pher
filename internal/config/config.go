@@ -1,3 +1,4 @@
+// Package config defines configuration (read from file) and defaults
 package config
 
 import (

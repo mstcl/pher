@@ -1,4 +1,5 @@
-// Transform various data strings to other data strings
+// Package convert defines helpers to transform various data strings to other
+// data strings
 package convert
 
 import (

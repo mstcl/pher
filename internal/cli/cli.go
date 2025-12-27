@@ -178,10 +178,17 @@ func Parse() error {
 	}
 
 	// Initiate templates
-	s.Templates = template.Must(template.ParseFS(
-		EmbedFS, filepath.Join(relTemplateDir, "*")))
 
-	logger.Debug("loaded templates")
+	// TODO: split this out to separate package
+	funcMap := template.FuncMap{
+		"joinPath": path.Join,
+	}
+
+	tmpl := template.New("main")
+	tmpl = tmpl.Funcs(funcMap)
+	s.Templates = template.Must(tmpl.ParseFS(EmbedFS, filepath.Join(relTemplateDir, "*")))
+
+	logger.Debug("loaded and initialized templates")
 
 	// Grab files and reorder so indexes are processed last
 	files, err := zglob.Glob(s.InDir + "/**/*.md")

@@ -35,7 +35,7 @@ func DefaultConfig() Config {
 		IsExt:         true,
 		RootCrumb:     "~",
 		Path:          "/",
-		CodeTheme:     "trac",
+		CodeTheme:     "ashen",
 	}
 }
 

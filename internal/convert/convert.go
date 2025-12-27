@@ -5,24 +5,9 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/mstcl/pher/v2/internal/nodepath"
 )
-
-// Href function returns the href, which is defined as follows:
-// inDir/a/b/c/file.md -> a/b/c/file
-func Href(f string, inDir string, prefixSlash bool) string {
-	// inDir/a/b/c/file.md -> a/b/c/file.md
-	rel, _ := filepath.Rel(inDir, f)
-
-	// a/b/c/file.md -> a/b/c/file
-	href := strings.TrimSuffix(rel, filepath.Ext(rel))
-
-	// a/b/c/file -> /a/b/c/file (for web rooting)
-	if prefixSlash {
-		href = "/" + href
-	}
-
-	return href
-}
 
 // Date function resolves the date d (format YYYY-MM-DD)
 // Returns a pretty date and a machine date
@@ -45,9 +30,9 @@ func Date(date string) (string, string, error) {
 // crumbsTitle: {"a", "b", "c"}
 //
 // crumbsLink: {"a/index.html", "a/b/index.html", "a/b/c/index.html"}
-func NavCrumbs(f string, inDir string, isExt bool) ([]string, []string) {
+func NavCrumbs(np nodepath.NodePath, inDir string, isExt bool) ([]string, []string) {
 	// inDir/a/b/c/file.md -> a/b/c/file.md
-	rel, _ := filepath.Rel(inDir, f)
+	rel, _ := filepath.Rel(inDir, np.String())
 
 	// a/b/c/file.md -> {a, b, c, file.md}
 	crumbsTitle := strings.Split(rel, "/")
@@ -82,10 +67,4 @@ func Title(metadataTitle string, filename string) string {
 	}
 
 	return title
-}
-
-// FileBase given a path /path/to/filename.ext, returns filename
-func FileBase(f string) string {
-	fn := filepath.Base(f)
-	return strings.TrimSuffix(fn, filepath.Ext(fn))
 }

@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mstcl/pher/v2/internal/convert"
+	"github.com/mstcl/pher/v2/internal/nodepath"
 	"github.com/mstcl/pher/v2/internal/state"
 )
 
@@ -31,32 +31,32 @@ func sanitize(s *state.State, logger *slog.Logger) error {
 	logger.Debug("sanitized config file", slog.String("path", s.ConfigFile))
 
 	// Sanitize input directory
-	s.InDir, err = filepath.Abs(s.InDir)
+	s.InputDir, err = filepath.Abs(s.InputDir)
 	if err != nil {
 		return fmt.Errorf("filepath.Abs: %w", err)
 	}
 
-	logger.Debug("sanitized input directory", slog.String("path", s.InDir))
+	logger.Debug("sanitized input directory", slog.String("path", s.InputDir))
 
 	// Sanitize output directory
-	s.OutDir, err = filepath.Abs(s.OutDir)
+	s.OutputDir, err = filepath.Abs(s.OutputDir)
 	if err != nil {
 		return fmt.Errorf("filepath.Abs: %w", err)
 	}
 
-	logger.Debug("sanitized output directory", slog.String("path", s.OutDir))
+	logger.Debug("sanitized output directory", slog.String("path", s.OutputDir))
 
 	return nil
 }
 
-// Move all index.md from files to the end so they are processed last
-func reorderFiles(files []string) []string {
-	var notIndex []string
+// reorderNodeFiles resorts nodes slice so that all group index are moved to the
+// end so they are processed last
+func reorderNodeFiles(nodepaths []nodepath.NodePath) []nodepath.NodePath {
+	var notIndex []nodepath.NodePath
+	var index []nodepath.NodePath
 
-	var index []string
-
-	for _, i := range files {
-		base := convert.FileBase(i)
+	for _, i := range nodepaths {
+		base := i.Base()
 		if base == "index" {
 			index = append(index, i)
 			continue
@@ -69,29 +69,29 @@ func reorderFiles(files []string) []string {
 }
 
 // dropHiddenFiles goes through files slice and drop those started with a dot
-func dropHiddenFiles(files []string) []string {
-	newFiles := []string{}
+func dropHiddenFiles(nodepaths []nodepath.NodePath) []nodepath.NodePath {
+	newFiles := []nodepath.NodePath{}
 
-	for _, f := range files {
-		base := filepath.Base(f)
+	for _, np := range nodepaths {
+		base := filepath.Base(np.String())
 		if strings.HasPrefix(base, ".") {
 			continue
 		}
 
-		newFiles = append(newFiles, f)
+		newFiles = append(newFiles, np)
 	}
 
 	return newFiles
 }
 
-func sanitizeSrcFiles(files []string, logger *slog.Logger) []string {
+func sanitizeNodePaths(nodepaths []nodepath.NodePath, logger *slog.Logger) []nodepath.NodePath {
 	// sanitize by removing all hidden files
-	files = dropHiddenFiles(files)
+	nodepaths = dropHiddenFiles(nodepaths)
 	logger.Debug("dropped hidden files")
 
 	// reorder the list so indexes are processed last
-	files = reorderFiles(files)
+	nodepaths = reorderNodeFiles(nodepaths)
 	logger.Debug("finalized list of files to process")
 
-	return files
+	return nodepaths
 }

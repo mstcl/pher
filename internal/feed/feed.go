@@ -23,7 +23,7 @@ func Construct(s *state.State, logger *slog.Logger) (string, error) {
 
 	feed.Items = []*Item{}
 
-	for _, v := range s.Entries {
+	for _, v := range s.NodeMap {
 		child := logger.With(slog.String("href", v.Href), slog.String("context", "atom feed"))
 
 		md := v.Metadata
@@ -66,7 +66,7 @@ func Write(s *state.State, atom string) error {
 
 	b := []byte(atom)
 
-	if err := os.WriteFile(s.OutDir+"/feed.xml", b, 0o644); err != nil {
+	if err := os.WriteFile(s.OutputDir+"/feed.xml", b, 0o644); err != nil {
 		return fmt.Errorf("writing article: %w", err)
 	}
 

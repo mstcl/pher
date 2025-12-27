@@ -8,8 +8,10 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/mstcl/pher/v2/internal/assetpath"
 	"github.com/mstcl/pher/v2/internal/convert"
-	"github.com/mstcl/pher/v2/internal/listing"
+	"github.com/mstcl/pher/v2/internal/nodepath"
+	"github.com/mstcl/pher/v2/internal/nodepathlink"
 	"github.com/mstcl/pher/v2/internal/source"
 	"github.com/mstcl/pher/v2/internal/state"
 	"github.com/mstcl/pher/v2/internal/tag"
@@ -27,18 +29,18 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 	tagsCount := make(map[string]int)
 
 	// tagsListing: tags listing - files with this tag (key: tag name)
-	tagsListing := make(map[string][]listing.Listing)
+	tagsListing := make(map[string][]nodepathlink.NodePathLink)
 
 	// First loop, can do most things
-	for _, f := range s.Files {
+	for _, np := range s.NodePaths {
 		child := logger.With(
-			slog.String("filepath", f),
+			slog.Any("nodepath", np),
 			slog.String("context", "extracting extras"),
 		)
 
-		entry := s.Entries[f]
+		entry := s.NodeMap[np]
 
-		file, err := os.Open(f)
+		file, err := os.Open(np.String())
 		if err != nil {
 			return err
 		}
@@ -91,10 +93,10 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 		child.Debug("extracted links", slog.Any("links", links))
 
 		// Resolve basic vars
-		path := filepath.Dir(f)
-		base := convert.FileBase(f)
+		path := filepath.Dir(np.String())
+		base := np.Base()
 		title := convert.Title(md.Title, base)
-		href := convert.Href(f, s.InDir, false)
+		href := np.Href(s.InputDir, false)
 		isDir := base == "index"
 
 		if s.Config.IsExt {
@@ -106,7 +108,7 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 		entry.Body = rendered.HTML
 		entry.Href = href
 		entry.ChromaCSS = rendered.ChromaCSS
-		s.Entries[f] = entry
+		s.NodeMap[np] = entry
 
 		// Update assets from internal links
 		for _, v := range links.InternalLinks {
@@ -116,10 +118,10 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 				return nil
 			}
 
-			s.Assets[ref] = true
+			s.UserAssetMap[assetpath.AssetPath(ref)] = true
 		}
 
-		child.Debug("updated assets with internal links paths", slog.Any("assets", s.Assets))
+		child.Debug("updated assets with internal links paths", slog.Any("assets", s.UserAssetMap))
 
 		// Update assets and wikilinks from backlinks
 		for _, v := range links.BackLinks {
@@ -132,23 +134,23 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 			// Process links with extensions as external files
 			// like images/gifs
 			if len(filepath.Ext(ref)) > 0 {
-				s.Assets[ref] = true
+				s.UserAssetMap[assetpath.AssetPath(ref)] = true
 			}
 
 			ref += ".md"
 
 			// Save backlinks
-			linkedEntry := s.Entries[ref]
+			linkedEntry := s.NodeMap[nodepath.NodePath(ref)]
 			linkedEntry.Backlinks = append(
 				linkedEntry.Backlinks,
-				listing.Listing{
+				nodepathlink.NodePathLink{
 					Href:        href,
 					Title:       title,
 					Description: entry.Metadata.Description,
 					IsDir:       isDir,
 				},
 			)
-			s.Entries[ref] = linkedEntry
+			s.NodeMap[nodepath.NodePath(ref)] = linkedEntry
 		}
 
 		child.Debug("updated assets and wiklinks from backlinks")
@@ -159,7 +161,7 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 		for _, v := range md.Tags {
 			tagsCount[v] += 1
 
-			tagsListing[v] = append(tagsListing[v], listing.Listing{
+			tagsListing[v] = append(tagsListing[v], nodepathlink.NodePathLink{
 				Href:        href,
 				Title:       title,
 				Description: entry.Metadata.Description,
@@ -180,22 +182,22 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 	//
 	// NOTE: Entries that share tags are related
 	// Hence dependent on tags listing (tl)
-	for _, f := range s.Files {
+	for _, np := range s.NodePaths {
 		child := logger.With(
-			slog.String("filepath", f),
+			slog.Any("nodepath", np),
 			slog.String("context", "extracting extras"),
 		)
 
-		entry := s.Entries[f]
+		entry := s.NodeMap[np]
 		if entry.Metadata.Draft || len(entry.Metadata.Tags) == 0 {
 			continue
 		}
 
 		// listings: all related links
-		listings := []listing.Listing{}
+		listings := []nodepathlink.NodePathLink{}
 
 		// relatedListings: unique related links
-		relatedListings := []listing.Listing{}
+		relatedListings := []nodepathlink.NodePathLink{}
 
 		// Get all files with similar tags
 		for _, t := range entry.Metadata.Tags {
@@ -208,7 +210,7 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 
 		for _, l := range listings {
 			filename := strings.TrimSuffix(l.Href, filepath.Ext(l.Href))
-			if filepath.Join(s.InDir, filename) == strings.TrimSuffix(f, ".md") {
+			if filepath.Join(s.InputDir, filename) == strings.TrimSuffix(np.String(), ".md") {
 				continue
 			}
 
@@ -225,7 +227,7 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 		child.Debug("extracted related links", slog.Any("relatedlinks", relatedListings))
 
 		// Update entry
-		s.Entries[f] = entry
+		s.NodeMap[np] = entry
 	}
 
 	// Transform maps of tags count and tags listing to give a sorted slice of tags.
@@ -242,9 +244,9 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 	for _, k := range keys {
 		tags = append(tags, tag.Tag{Name: k, Count: tagsCount[k], Links: tagsListing[k]})
 	}
-	s.Tags = append(s.Tags, tags...)
+	s.NodeTags = append(s.NodeTags, tags...)
 
-	logger.Debug("extracted tags", slog.Any("tags", s.Tags))
+	logger.Debug("extracted tags", slog.Any("tags", s.NodeTags))
 
 	return nil
 }

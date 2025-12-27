@@ -12,7 +12,8 @@ import (
 
 	"github.com/mstcl/pher/v2/internal/config"
 	"github.com/mstcl/pher/v2/internal/convert"
-	"github.com/mstcl/pher/v2/internal/listing"
+	"github.com/mstcl/pher/v2/internal/nodepath"
+	"github.com/mstcl/pher/v2/internal/nodepathlink"
 	"github.com/mstcl/pher/v2/internal/state"
 	"github.com/mstcl/pher/v2/internal/tag"
 	"golang.org/x/sync/errgroup"
@@ -46,7 +47,7 @@ type data struct {
 	Tags                                     []string
 	TagsListing                              []tag.Tag
 	Footer                                   []config.FooterLink
-	Backlinks, Relatedlinks, Crumbs, Listing []listing.Listing
+	Backlinks, Relatedlinks, Crumbs, Listing []nodepathlink.NodePathLink
 	TOC                                      bool
 	ShowHeader                               bool
 }
@@ -87,36 +88,36 @@ func Render(ctx context.Context, s *state.State, logger *slog.Logger) error {
 
 	eg, _ := errgroup.WithContext(ctx)
 
-	for _, f := range s.Files {
-		child := logger.With(slog.String("filepath", f), slog.String("context", "templating"))
+	for _, np := range s.NodePaths {
+		child := logger.With(slog.Any("nodepath", np), slog.String("context", "templating"))
 
 		child.Debug("submitting goroutine")
 
 		eg.Go(func() error {
 			// Don't render drafts or skipped files
-			entry := s.Entries[f]
-			if entry.Metadata.Draft || s.Skip[f] {
+			entry := s.NodeMap[np]
+			if entry.Metadata.Draft || s.SkippedNodePathMap[np] {
 				return nil
 			}
 
 			// Get navigation crumbs
-			crumbsTitle, crumbsLink := convert.NavCrumbs(f, s.InDir, s.Config.IsExt)
+			crumbsTitle, crumbsLink := convert.NavCrumbs(np, s.InputDir, s.Config.IsExt)
 
 			// Populate navigation crumbs
-			crumbs := []listing.Listing{}
+			crumbs := []nodepathlink.NodePathLink{}
 			for i, t := range crumbsTitle {
-				crumbs = append(crumbs, listing.Listing{Href: crumbsLink[i], Title: t})
+				crumbs = append(crumbs, nodepathlink.NodePathLink{Href: crumbsLink[i], Title: t})
 			}
 
 			// The output path outDir/{a/b/c/file}.html (part in curly brackets is the href)
-			outPath := s.OutDir + convert.Href(f, s.InDir, true) + ".html"
+			outPath := s.OutputDir + np.Href(s.InputDir, true) + ".html"
 
 			// Construct rendering data (entryData) from config, entry data, listing, nav
 			// crumbs, etc.
 			entryData := data{
 				OutFilename:  outPath,
-				Listing:      s.Listings[f],
-				Filename:     convert.FileBase(f),
+				Listing:      s.NodePathLinksMap[np],
+				Filename:     np.Base(),
 				Description:  entry.Metadata.Description,
 				Tags:         entry.Metadata.Tags,
 				TOC:          entry.Metadata.TOC,
@@ -158,8 +159,8 @@ func Render(ctx context.Context, s *state.State, logger *slog.Logger) error {
 			}
 
 			// Add tags only to root index
-			if f == s.InDir+"/index.md" {
-				entryData.TagsListing = s.Tags
+			if np == nodepath.NodePath(filepath.Join(s.InputDir, "index.md")) {
+				entryData.TagsListing = s.NodeTags
 			}
 
 			// Render
@@ -190,8 +191,8 @@ func Render(ctx context.Context, s *state.State, logger *slog.Logger) error {
 		data: &data{
 			RootCrumb:   s.Config.RootCrumb,
 			Footer:      s.Config.Footer,
-			TagsListing: s.Tags,
-			OutFilename: s.OutDir + "/tags.html",
+			TagsListing: s.NodeTags,
+			OutFilename: s.OutputDir + "/tags.html",
 			Path:        s.Config.Path,
 		},
 	}); err != nil {

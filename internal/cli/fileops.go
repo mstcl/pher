@@ -12,6 +12,7 @@ import (
 	"slices"
 
 	"github.com/mattn/go-zglob"
+	"github.com/mstcl/pher/v2/internal/nodepath"
 	"github.com/mstcl/pher/v2/internal/state"
 	"golang.org/x/sync/errgroup"
 )
@@ -24,19 +25,24 @@ func createDir(dir string) error {
 	return nil
 }
 
-// getSrcFiles return the files we need to process by recursively glob for all
-// markdown files, then run sanitizeSrcFiles on them
-func getSrcFiles(inputDir string, logger *slog.Logger) ([]string, error) {
-	files, err := zglob.Glob(filepath.Join(inputDir, "**", "*.md"))
+// getNodePaths return the nodes we need to process by recursively glob for all
+// markdown files, then run sanitizeNodeFiles() on them
+func getNodePaths(inputDir string, logger *slog.Logger) ([]nodepath.NodePath, error) {
+	nodepathsRaw, err := zglob.Glob(filepath.Join(inputDir, "**", "*.md"))
 	if err != nil {
 		return nil, fmt.Errorf("glob files: %w", err)
 	}
 
-	// sanitize files found
-	files = sanitizeSrcFiles(files, logger)
-	logger.Debug("sanitized source files", slog.Any("paths", files))
+	var nodepaths []nodepath.NodePath
+	for _, np := range nodepathsRaw {
+		nodepaths = append(nodepaths, nodepath.NodePath(np))
+	}
 
-	return files, nil
+	// sanitize files found
+	nodepaths = sanitizeNodePaths(nodepaths, logger)
+	logger.Debug("sanitized source files", slog.Any("paths", nodepathsRaw))
+
+	return nodepaths, nil
 }
 
 // cleanOutput removes all files and directories in outputDir,
@@ -100,9 +106,9 @@ func copyFile(inPath string, outPath string, permission os.FileMode) error {
 func copyUserAssets(ctx context.Context, s *state.State, logger *slog.Logger) error {
 	eg, _ := errgroup.WithContext(ctx)
 
-	for assetPath := range s.Assets {
+	for assetPath := range s.UserAssetMap {
 		child := logger.With(
-			slog.String("filepath", assetPath),
+			slog.Any("assetpath", assetPath),
 			slog.String("context", "copying asset"),
 		)
 
@@ -110,8 +116,8 @@ func copyUserAssets(ctx context.Context, s *state.State, logger *slog.Logger) er
 
 		eg.Go(func() error {
 			// NOTE: want our assets to go from inDir/a/b/c/image.png -> outDir/a/b/c/image.png
-			relToInputDir, _ := filepath.Rel(s.InDir, assetPath)
-			outputPath := filepath.Join(s.OutDir, relToInputDir)
+			relToInputDir, _ := filepath.Rel(s.InputDir, assetPath.String())
+			outputPath := filepath.Join(s.OutputDir, relToInputDir)
 			parentOutputDir := filepath.Dir(outputPath)
 
 			// Make equivalent directory in output directory
@@ -120,7 +126,7 @@ func copyUserAssets(ctx context.Context, s *state.State, logger *slog.Logger) er
 			}
 
 			// Copy file to target directory
-			return copyFile(assetPath, outputPath, 0o644)
+			return copyFile(assetPath.String(), outputPath, 0o644)
 		})
 	}
 
@@ -129,7 +135,7 @@ func copyUserAssets(ctx context.Context, s *state.State, logger *slog.Logger) er
 
 // copyStatic
 func copyStatic(s *state.State, logger *slog.Logger) error {
-	outputDir := filepath.Join(s.OutDir, relStaticOutputDir)
+	outputDir := filepath.Join(s.OutputDir, relStaticOutputDir)
 
 	// make static directory in output directory
 	if err := os.MkdirAll(outputDir, 0o755); err != nil {

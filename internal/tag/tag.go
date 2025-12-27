@@ -1,6 +1,6 @@
 package tag
 
-import "github.com/mstcl/pher/v2/internal/listing"
+import "github.com/mstcl/pher/v2/internal/nodepathlink"
 
 // A tag struct for extract.extractTags and render.RenderTags. Not to be
 // conceptually confused with parse.Metadata.Tags !!!
@@ -12,6 +12,6 @@ import "github.com/mstcl/pher/v2/internal/listing"
 // * Links: entries (represtend as listing.Listing) for a given tag
 type Tag struct {
 	Name  string
-	Links []listing.Listing
+	Links []nodepathlink.NodePathLink
 	Count int
 }

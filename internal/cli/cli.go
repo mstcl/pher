@@ -11,6 +11,11 @@ import (
 	"github.com/mstcl/pher/v3/internal/state"
 )
 
+var (
+	Logger      *slog.Logger
+	LogLevelVar *slog.LevelVar
+)
+
 const (
 	relTemplateDir     = "web/template"
 	relStaticDir       = "web/static"
@@ -22,15 +27,17 @@ func Handler() error {
 
 	start := time.Now() // start execution timer
 
-	s := state.Init() // this is our lobal state
+	s := state.Init() // this is our app state
 
 	parseFlags(&s) // parse all our CLI flags here (onto the state)
 
-	logger := createLogger(s.Debug) // create our "global" logger
+	if s.Debug {
+		LogLevelVar.Set(slog.LevelDebug)
+	}
 
 	initRuntimeInfo() // get global runtime info
 
-	logger.Debug(
+	Logger.Debug(
 		"gathered runtime info",
 		slog.String("revision", Revision),
 		slog.String("version", Version),
@@ -39,7 +46,7 @@ func Handler() error {
 		slog.Time("build_date", BuildDate),
 	)
 
-	logger.Debug("parsed flags",
+	Logger.Debug("parsed flags",
 		slog.String("inDir", s.InputDir),
 		slog.String("outDir", s.OutputDir),
 		slog.String("configFile", s.ConfigFile),
@@ -55,20 +62,20 @@ func Handler() error {
 	}
 
 	// sanitize paths
-	sanitize(&s, logger)
+	sanitize(&s)
 
 	// create output directory
 	if err := createDir(s.OutputDir); err != nil {
 		return err
 	}
-	logger.Debug("created output directory", slog.String("dir", s.OutputDir))
+	Logger.Debug("created output directory", slog.String("dir", s.OutputDir))
 
 	// parse configuration
 	s.Config, err = config.Read(s.ConfigFile)
 	if err != nil {
 		return err
 	}
-	logger.Debug("parsed configuration", slog.Any("config", s.Config))
+	Logger.Debug("parsed configuration", slog.Any("config", s.Config))
 
 	// clean output directory
 	if !s.DryRun {
@@ -77,42 +84,43 @@ func Handler() error {
 		if err := cleanOutputDir(s.OutputDir, exceptions); err != nil {
 			return err
 		}
-		logger.Info("cleaned output directory", slog.Any("exceptions", exceptions))
+		Logger.Info("cleaned output directory", slog.Any("exceptions", exceptions))
 	} else {
-		logger.Debug("dry run — skipped cleaning output directory")
+		Logger.Debug("dry run — skipped cleaning output directory")
 	}
 
 	// initiate templates
 	initTemplates(&s)
-	logger.Debug("loaded and initialized templates")
+	Logger.Debug("loaded and initialized templates")
 
 	// get source files from input directory
-	s.NodePaths, err = getNodePaths(s.InputDir, logger)
+	s.NodePaths, err = getNodePaths(s.InputDir)
 	if err != nil {
 		return err
 	}
-	logger.Debug("found source files", slog.Any("paths", s.NodePaths))
+	Logger.Debug("found source files", slog.Any("paths", s.NodePaths))
 
 	// TODO: refactor
 	// update the state with various metadata
-	if err := extractExtras(&s, logger); err != nil {
+	if err := extractExtras(&s); err != nil {
 		return err
 	}
-	logger.Info("extracted metadata and file relations")
+	Logger.Info("extracted metadata and file relations")
 
 	// TODO: refactor
 	// update the state with file listings, like backlinks and similar entries
-	if err := populateNodePathLinks(&s, logger); err != nil {
+	if err := populateNodePathLinks(&s); err != nil {
 		return err
 	}
-	logger.Info("created file index")
+	Logger.Info("created file index")
 
 	// do the rest of our tasks concurrently
-	if err := runConcurrentJobs(context.Background(), &s, logger); err != nil {
+	if err := runConcurrentJobs(context.Background(), &s); err != nil {
 		return err
 	}
+
 	end := time.Since(start)
-	logger.Info(
+	Logger.Info(
 		"completed",
 		slog.Duration("execution time", end),
 		slog.Int("number of files", len(s.NodePaths)),

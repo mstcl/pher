@@ -11,7 +11,7 @@ import (
 	"github.com/mstcl/pher/v3/internal/state"
 )
 
-func sanitize(s *state.State, logger *slog.Logger) error {
+func sanitize(s *state.State) error {
 	var err error
 
 	// Sanitize configuration file
@@ -28,7 +28,7 @@ func sanitize(s *state.State, logger *slog.Logger) error {
 		return fmt.Errorf("os.Stat %s: %w", s.ConfigFile, err)
 	}
 
-	logger.Debug("sanitized config file", slog.String("path", s.ConfigFile))
+	Logger.Debug("sanitized config file", slog.String("path", s.ConfigFile))
 
 	// Sanitize input directory
 	s.InputDir, err = filepath.Abs(s.InputDir)
@@ -36,7 +36,7 @@ func sanitize(s *state.State, logger *slog.Logger) error {
 		return fmt.Errorf("filepath.Abs: %w", err)
 	}
 
-	logger.Debug("sanitized input directory", slog.String("path", s.InputDir))
+	Logger.Debug("sanitized input directory", slog.String("path", s.InputDir))
 
 	// Sanitize output directory
 	s.OutputDir, err = filepath.Abs(s.OutputDir)
@@ -44,7 +44,7 @@ func sanitize(s *state.State, logger *slog.Logger) error {
 		return fmt.Errorf("filepath.Abs: %w", err)
 	}
 
-	logger.Debug("sanitized output directory", slog.String("path", s.OutputDir))
+	Logger.Debug("sanitized output directory", slog.String("path", s.OutputDir))
 
 	return nil
 }
@@ -83,11 +83,8 @@ func dropHiddenFiles(nodepaths []nodepath.NodePath) []nodepath.NodePath {
 
 // isPathHidden checks if any component of a path starts with a dot.
 func isPathHidden(p string) bool {
-	// split the path into components.
-	parts := strings.Split(p, string(filepath.Separator))
-
 	// iterate through each part and check for a leading dot.
-	for _, part := range parts {
+	for part := range strings.SplitSeq(p, string(filepath.Separator)) {
 		if strings.HasPrefix(part, ".") && part != "." && part != ".." {
 			return true
 		}
@@ -96,14 +93,14 @@ func isPathHidden(p string) bool {
 	return false
 }
 
-func sanitizeNodePaths(nodepaths []nodepath.NodePath, logger *slog.Logger) []nodepath.NodePath {
+func sanitizeNodePaths(nodepaths []nodepath.NodePath) []nodepath.NodePath {
 	// sanitize by removing all hidden files
 	nodepaths = dropHiddenFiles(nodepaths)
-	logger.Debug("dropped hidden files")
+	Logger.Debug("dropped hidden files")
 
 	// reorder the list so indexes are processed last
 	nodepaths = reorderNodeFiles(nodepaths)
-	logger.Debug("finalized list of files to process")
+	Logger.Debug("finalized list of files to process")
 
 	return nodepaths
 }

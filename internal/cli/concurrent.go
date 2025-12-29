@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"log/slog"
 
 	"github.com/mstcl/pher/v3/internal/feed"
 	"github.com/mstcl/pher/v3/internal/render"
@@ -16,11 +15,11 @@ import (
 //  2. Copy assets to the output directory
 //  3. Copy static files to the output directory
 //  4. Render all source files to HTML to the output directory
-func runConcurrentJobs(ctx context.Context, s *state.State, logger *slog.Logger) error {
+func runConcurrentJobs(ctx context.Context, s *state.State) error {
 	// construct and render atom feeds
 	constructFeedGroup, _ := errgroup.WithContext(ctx)
 	constructFeedGroup.Go(func() error {
-		atom, err := feed.Construct(s, logger)
+		atom, err := feed.Construct(s)
 		if err != nil {
 			return err
 		}
@@ -29,12 +28,12 @@ func runConcurrentJobs(ctx context.Context, s *state.State, logger *slog.Logger)
 	},
 	)
 
-	logger.Info("created atom feed")
+	Logger.Info("created atom feed")
 
 	// copy asset dirs/files over to output directory
 	copyUserAssetsGroup, _ := errgroup.WithContext(ctx)
 	copyUserAssetsGroup.Go(func() error {
-		if err := copyUserAssets(ctx, s, logger); err != nil {
+		if err := copyUserAssets(ctx, s); err != nil {
 			return err
 		}
 
@@ -42,26 +41,26 @@ func runConcurrentJobs(ctx context.Context, s *state.State, logger *slog.Logger)
 	},
 	)
 
-	logger.Info("synced user assets")
+	Logger.Info("synced user assets")
 
 	// copy static content to the output directory
 	copyStaticGroup, _ := errgroup.WithContext(ctx)
 	copyStaticGroup.Go(func() error {
-		if err := copyStatic(s, logger); err != nil {
+		if err := copyStatic(s); err != nil {
 			return err
 		}
 
 		return nil
 	},
 	)
-	logger.Info("copied static files")
+	Logger.Info("copied static files")
 
 	// render all markdown files
 	renderGroup, _ := errgroup.WithContext(ctx)
 	renderGroup.Go(func() error {
-		return render.Render(ctx, s, logger)
+		return render.Render(ctx, s)
 	})
-	logger.Info("templated all source files")
+	Logger.Info("templated all source files")
 
 	// wait for all goroutines to finish
 	if err := constructFeedGroup.Wait(); err != nil {

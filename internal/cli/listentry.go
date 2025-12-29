@@ -25,7 +25,7 @@ type populateNodePathLinksHelperInput struct {
 // children nodepaths (can either be nodes or nodegroups), and calls
 // populateNodesListEntryHelper() on children nodepaths to populate the
 // children's nodepath links
-func populateNodePathLinks(s *state.State, logger *slog.Logger) error {
+func populateNodePathLinks(s *state.State) error {
 	s.NodegroupWithoutIndexMap = make(map[nodepath.NodePath]bool)
 
 	nodepathsRaw, err := zglob.Glob(filepath.Join(s.InputDir, "**", "*"))
@@ -41,13 +41,13 @@ func populateNodePathLinks(s *state.State, logger *slog.Logger) error {
 	// add the root "." as well
 	nodepaths = append(nodepaths, nodepath.NodePath(s.InputDir))
 
-	logger.Debug("found all nodepaths", slog.Any("nodepaths", nodepaths))
+	Logger.Debug("found all nodepaths", slog.Any("nodepaths", nodepaths))
 
 	// Go through and drop all nodepaths that aren't nodegroups Glob nodegroups
 	// for further nodepaths and call the helper function to populate their
 	// NodePathLink slice
 	for _, np := range nodepaths {
-		childNodePath := logger.With(
+		childNodePath := Logger.With(
 			slog.Any("nodepath", np),
 			slog.String("context", "populateNodePathLinks"),
 		)
@@ -78,7 +78,7 @@ func populateNodePathLinks(s *state.State, logger *slog.Logger) error {
 		if err := populateNodePathLinksHelper(s, &populateNodePathLinksHelperInput{
 			parentNodePath:   np,
 			childrenNodePath: children,
-		}, logger); err != nil {
+		}); err != nil {
 			return err
 		}
 	}
@@ -121,7 +121,6 @@ func populateNodePathLinks(s *state.State, logger *slog.Logger) error {
 func populateNodePathLinksHelper(
 	s *state.State,
 	i *populateNodePathLinksHelperInput,
-	logger *slog.Logger,
 ) error {
 	// this is the nodegroup index path, we expect it to be at /path/to/nodegroup/index.md
 	nodegroupIndexPath := nodepath.NodePath(filepath.Join(i.parentNodePath.String(), "index.md"))
@@ -132,7 +131,7 @@ func populateNodePathLinksHelper(
 
 	// for each child, make some decisions
 	for _, np := range i.childrenNodePath {
-		childLogger := logger.With(
+		childLogger := Logger.With(
 			slog.Any("filepath", np),
 			slog.String("context", "child listing"),
 		)

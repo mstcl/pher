@@ -19,6 +19,8 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+var Logger *slog.Logger
+
 // data contains all fields used in the html templates.
 //
 // * Title: page title (set in title tags and in document)
@@ -83,13 +85,13 @@ func render(i *renderInput) error {
 }
 
 // Render all files, including tags page, to html.
-func Render(ctx context.Context, s *state.State, logger *slog.Logger) error {
+func Render(ctx context.Context, s *state.State) error {
 	var err error
 
 	eg, _ := errgroup.WithContext(ctx)
 
 	for _, np := range s.NodePaths {
-		child := logger.With(slog.Any("nodepath", np), slog.String("context", "templating"))
+		child := Logger.With(slog.Any("nodepath", np), slog.String("context", "templating"))
 
 		child.Debug("submitting goroutine")
 
@@ -181,7 +183,7 @@ func Render(ctx context.Context, s *state.State, logger *slog.Logger) error {
 		return err
 	}
 
-	logger.Debug("finished rendering all files")
+	Logger.Debug("finished rendering all files")
 
 	// Render tags page
 	if err := render(&renderInput{
@@ -199,7 +201,7 @@ func Render(ctx context.Context, s *state.State, logger *slog.Logger) error {
 		return err
 	}
 
-	logger.Debug("finished rendering tags page")
+	Logger.Debug("finished rendering tags page")
 
 	return nil
 }

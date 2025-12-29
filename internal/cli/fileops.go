@@ -27,7 +27,7 @@ func createDir(dir string) error {
 
 // getNodePaths return the nodes we need to process by recursively glob for all
 // markdown files, then run sanitizeNodeFiles() on them
-func getNodePaths(inputDir string, logger *slog.Logger) ([]nodepath.NodePath, error) {
+func getNodePaths(inputDir string) ([]nodepath.NodePath, error) {
 	nodepathsRaw, err := zglob.Glob(filepath.Join(inputDir, "**", "*.md"))
 	if err != nil {
 		return nil, fmt.Errorf("glob files: %w", err)
@@ -39,8 +39,8 @@ func getNodePaths(inputDir string, logger *slog.Logger) ([]nodepath.NodePath, er
 	}
 
 	// sanitize files found
-	nodepaths = sanitizeNodePaths(nodepaths, logger)
-	logger.Debug("sanitized source files", slog.Any("paths", nodepathsRaw))
+	nodepaths = sanitizeNodePaths(nodepaths)
+	Logger.Debug("sanitized source files", slog.Any("paths", nodepathsRaw))
 
 	return nodepaths, nil
 }
@@ -103,11 +103,11 @@ func copyFile(inPath string, outPath string, permission os.FileMode) error {
 
 // Move extra files like assets (images, fonts, css) over to output, preserving
 // the file structure.
-func copyUserAssets(ctx context.Context, s *state.State, logger *slog.Logger) error {
+func copyUserAssets(ctx context.Context, s *state.State) error {
 	eg, _ := errgroup.WithContext(ctx)
 
 	for assetPath := range s.UserAssetMap {
-		child := logger.With(
+		child := Logger.With(
 			slog.Any("assetpath", assetPath),
 			slog.String("context", "copying asset"),
 		)
@@ -134,7 +134,7 @@ func copyUserAssets(ctx context.Context, s *state.State, logger *slog.Logger) er
 }
 
 // copyStatic
-func copyStatic(s *state.State, logger *slog.Logger) error {
+func copyStatic(s *state.State) error {
 	outputDir := filepath.Join(s.OutputDir, relStaticOutputDir)
 
 	// make static directory in output directory
@@ -142,14 +142,14 @@ func copyStatic(s *state.State, logger *slog.Logger) error {
 		return fmt.Errorf("os.MkdirAll %s: %w", outputDir, err)
 	}
 
-	logger.Debug("created static output directory", slog.String("dir", outputDir))
+	Logger.Debug("created static output directory", slog.String("dir", outputDir))
 
 	staticFS, err := fs.Sub(EmbedFS, relStaticDir)
 	if err != nil {
 		return fmt.Errorf("create subfilesystem %s: %w", relStaticDir, err)
 	}
 
-	logger.Debug("created static subfilesystem", slog.String("dir", relStaticDir))
+	Logger.Debug("created static subfilesystem", slog.String("dir", relStaticDir))
 
 	// walk through all files and directories in the `staticfs`.
 	// starting at the root of the sub-filesystem.
@@ -195,7 +195,7 @@ func copyStatic(s *state.State, logger *slog.Logger) error {
 		return fmt.Errorf("fs.WalkDir: %w", err)
 	}
 
-	logger.Debug("walked static subfilesystem", slog.String("outputDir", outputDir))
+	Logger.Debug("walked static subfilesystem", slog.String("outputDir", outputDir))
 
 	return nil
 }

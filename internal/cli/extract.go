@@ -24,7 +24,7 @@ import (
 // Calls source.ToHTML()
 // Calls source.ExtractLinks()
 // Further business logic to construct the backlinks, relatedlinks, asset map and tags slice
-func extractExtras(s *state.State, logger *slog.Logger) error {
+func extractExtras(s *state.State) error {
 	// tagsCount: tags count (key: tag name)
 	tagsCount := make(map[string]int)
 
@@ -33,7 +33,7 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 
 	// First loop, can do most things
 	for _, np := range s.NodePaths {
-		child := logger.With(
+		child := Logger.With(
 			slog.Any("nodepath", np),
 			slog.String("context", "extracting extras"),
 		)
@@ -176,14 +176,14 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 		)
 	}
 
-	logger.Debug("proceeding to second loop")
+	Logger.Debug("proceeding to second loop")
 
 	// Second loop for related links
 	//
 	// NOTE: Entries that share tags are related
 	// Hence dependent on tags listing (tl)
 	for _, np := range s.NodePaths {
-		child := logger.With(
+		child := Logger.With(
 			slog.Any("nodepath", np),
 			slog.String("context", "extracting extras"),
 		)
@@ -246,7 +246,7 @@ func extractExtras(s *state.State, logger *slog.Logger) error {
 	}
 	s.NodeTags = append(s.NodeTags, tags...)
 
-	logger.Debug("extracted tags", slog.Any("tags", s.NodeTags))
+	Logger.Debug("extracted tags", slog.Any("tags", s.NodeTags))
 
 	return nil
 }

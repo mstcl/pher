@@ -10,8 +10,10 @@ import (
 	"github.com/mstcl/pher/v3/internal/state"
 )
 
+var Logger *slog.Logger
+
 // Construct creates the RSS feed in memory
-func Construct(s *state.State, logger *slog.Logger) (string, error) {
+func Construct(s *state.State) (string, error) {
 	now := time.Now()
 
 	author := &Author{Name: s.Config.AuthorName, Email: s.Config.AuthorEmail}
@@ -26,7 +28,7 @@ func Construct(s *state.State, logger *slog.Logger) (string, error) {
 	feed.Items = []*Item{}
 
 	for _, v := range s.NodeMap {
-		child := logger.With(slog.String("href", v.Href), slog.String("context", "atom feed"))
+		child := Logger.With(slog.String("href", v.Href), slog.String("context", "atom feed"))
 
 		md := v.Metadata
 		if len(md.Date) == 0 {

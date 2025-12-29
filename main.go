@@ -21,17 +21,28 @@ import (
 
 	"github.com/lmittmann/tint"
 	"github.com/mstcl/pher/v3/internal/cli"
+	"github.com/mstcl/pher/v3/internal/feed"
+	"github.com/mstcl/pher/v3/internal/render"
 )
 
 //go:embed web/template/* web/static/*
 var fs embed.FS
 
 func main() {
+	lvl := new(slog.LevelVar)
+	lvl.Set(slog.LevelInfo)
+
 	logger := slog.New(tint.NewHandler(os.Stderr, &tint.Options{
 		TimeFormat: time.Kitchen,
+		Level:      lvl,
 	}))
 
 	cli.EmbedFS = fs
+	cli.LogLevelVar = lvl
+
+	cli.Logger = logger
+	render.Logger = logger
+	feed.Logger = logger
 
 	if err := cli.Handler(); err != nil {
 		logger.Error(fmt.Sprintf("%v", err))

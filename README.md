@@ -23,7 +23,7 @@ there are a few differences:
 ## Installation
 
 ```bash
-$ go install github.com/mstcl/pher/v3@v3.0.0
+$ go install github.com/mstcl/pher/v3@v3.0.1
 ```
 
 ## Usage
@@ -42,6 +42,7 @@ Usage of pher:
 ## Configuration
 
 ```yaml
+---
 # atom feed options
 title: "" # wiki title
 description: "" # wiki description
@@ -82,8 +83,8 @@ draft: false # Don't render this entry
 toc: false # Render a table of contents for this entry
 showHeader: true # Show the header (title, description, tags, date)
 layout: "list" # Available values: "grid", "list", "log". Only effective for index.md files.
----
 
+---
 ```
 
 ## To do
@@ -132,8 +133,7 @@ location / {
 }
 ```
 
-Additionally, setting `keepExtension:
-false` will strip ".html" from href links.
+Additionally, setting `keepExtension: false` will strip ".html" from href links.
 This might be necessary if you use weird browsers that break redirects.
 
 ## Credits

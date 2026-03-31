@@ -2,7 +2,7 @@ export CGO_ENABLED := "0"
 
 # build locally
 build: tidy
-	go build -gcflags "-l" -ldflags "-w -s" .
+	go build -ldflags "-w -s" .
 
 # run golangci-lint
 lint:
@@ -14,7 +14,7 @@ tidy:
 
 # install to user path
 install: tidy build
-	go install -gcflags "-l" -ldflags "-w -s" .
+	go install -ldflags "-w -s" .
 
 # run go test
 test:
